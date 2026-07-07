@@ -1,0 +1,28 @@
+# ADS-B — 1090 MHz Aircraft Tracking
+# Device: NooElec v5 #2 (pending)
+# Decoded by: dump1090 / readsb
+
+device: adsb
+
+dump1090:
+  freq_mhz: 1090.0
+  gain: 49.6                  # typical good starting point; tune per antenna
+  ppm: 0
+  net: true                   # enable network output ports
+  net_port_beast: 30005       # Beast binary output (for feeders)
+  net_port_sbs: 30003         # SBS-1 BaseStation format
+  net_port_raw: 30002         # Raw AVR format
+  json_port: 8080             # dump1090 web map port
+
+antenna:
+  type: "1090 MHz collinear or cantenna"
+  notes: >
+    A simple quarter-wave ground plane (6.9 cm radiator, 4× 6.9 cm radials)
+    works well. A spider antenna or coax collinear improves range significantly.
+    Mount as high and in the open as possible for maximum range.
+
+mlat:
+  enabled: false              # enable if feeding to mlat network (adsbexchange, etc.)
+  receiver_lat: 47.25         # Tacoma approximate — update with exact location
+  receiver_lon: -122.44
+  receiver_alt_m: 50          # update with actual antenna height MSL

@@ -1,0 +1,70 @@
+# BNSF Railroad — Tacoma / Pacific Northwest AAR Frequencies
+# AAR channel plan, VHF High band (160-161 MHz)
+# Modulation: NFM (narrowband FM), 5 kHz deviation
+
+device: railroad
+squelch_db: -60
+scan_mode: priority      # dwell on active channel, resume scan on silence
+
+channels:
+  # BNSF main operating channels (Pacific Division / Puget Sound Sub)
+  - name: "BNSF Road Ch 7"
+    freq_mhz: 160.470
+    priority: true
+    notes: "Primary BNSF road channel — Tacoma area"
+
+  - name: "BNSF Road Ch 8"
+    freq_mhz: 160.530
+    priority: true
+    notes: "BNSF secondary road"
+
+  - name: "BNSF Road Ch 9"
+    freq_mhz: 160.575
+    priority: false
+
+  - name: "BNSF Road Ch 10"
+    freq_mhz: 160.590
+    priority: false
+
+  - name: "BNSF MofW Ch 1"
+    freq_mhz: 161.100
+    priority: false
+    notes: "Maintenance of Way"
+
+  - name: "BNSF MofW Ch 2"
+    freq_mhz: 161.190
+    priority: false
+    notes: "Maintenance of Way"
+
+  - name: "BNSF Ch 28"
+    freq_mhz: 161.250
+    priority: false
+
+  - name: "BNSF Ch 30"
+    freq_mhz: 161.280
+    priority: false
+
+  - name: "BNSF Ch 32"
+    freq_mhz: 161.370
+    priority: false
+
+  - name: "BNSF Yard"
+    freq_mhz: 160.920
+    priority: false
+    notes: "Tacoma yard operations"
+
+  - name: "BNSF Car Dept"
+    freq_mhz: 161.520
+    priority: false
+
+  # Sound Transit / Sounder commuter rail (uses BNSF trackage)
+  - name: "Sounder Operations"
+    freq_mhz: 160.470
+    priority: false
+    notes: "Sounder shares BNSF road frequencies"
+
+  # Union Pacific (shares some Tacoma terminal area)
+  - name: "UP Road Ch 1"
+    freq_mhz: 160.515
+    priority: false
+    notes: "Union Pacific — less common in Tacoma but present"

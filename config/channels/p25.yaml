@@ -1,0 +1,34 @@
+# P25 Trunking — Pierce County / Tacoma area
+# Device: NooElec v5 #1 (pending)
+# Decoded by: OP25 (GNU Radio based)
+
+device: p25
+decode_encrypted: false      # only decode unencrypted traffic
+
+systems:
+  - name: "Pierce County P25"
+    type: p25_phase1           # or p25_phase2 — verify from radioreference.com
+    wacn: 0xBEE00             # placeholder — verify on radioreference.com
+    sysid: 0x14A              # placeholder — verify on radioreference.com
+    nac: 0x14A                # placeholder
+    control_channels:
+      - 855.1625              # placeholder — fill from radioreference.com
+      - 855.6875
+    notes: >
+      Pierce County Regional Communications — covers Tacoma PD, Pierce County SO,
+      Tacoma Fire, Pierce County Fire. Verify control channels and WACN/SYSID
+      at radioreference.com before running OP25.
+
+  - name: "Tacoma Police (conventional fallback)"
+    type: conventional
+    channels:
+      - name: "TPD Dispatch"
+        freq_mhz: 0.000       # placeholder — check radioreference.com
+      - name: "TPD Tac 1"
+        freq_mhz: 0.000
+
+    notes: "Conventional channels used when P25 system goes down or for simplex ops"
+
+# TODO: Pull current trunking data from:
+#   https://www.radioreference.com/db/browse/ctid/1694  (Pierce County)
+#   https://www.radioreference.com/db/browse/stid/WA

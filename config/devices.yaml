@@ -1,0 +1,36 @@
+# SDR Device Assignment Configuration
+# Set serial numbers with: rtl_eeprom -d <index> -s <serial>
+# Then update serial fields below to match.
+
+devices:
+  - id: railroad
+    serial: "RTLSDR_RR"        # RTL-SDR.COM V3 #1
+    model: "RTL-SDR.COM V3 (R820T2)"
+    role: "BNSF Railroad scanner"
+    antenna: "160 MHz dipole / yagi"
+    sample_rate: 2048000
+    ppm: 0                     # calibrate per-device with kalibrate-rtl
+
+  - id: marine
+    serial: "RTLSDR_MRN"       # RTL-SDR.COM V3 #2
+    model: "RTL-SDR.COM V3 (R820T2)"
+    role: "Marine VHF voice + AIS"
+    antenna: "157 MHz vertical dipole"
+    sample_rate: 2048000
+    ppm: 0
+
+  - id: p25
+    serial: "NOOELEC_P25"      # NooElec v5 #1 (pending)
+    model: "NooElec RTL-SDR v5"
+    role: "P25 trunking — public safety"
+    antenna: "Discone / broadband vertical"
+    sample_rate: 2400000
+    ppm: 0
+
+  - id: adsb
+    serial: "NOOELEC_ADSB"     # NooElec v5 #2 (pending)
+    model: "NooElec RTL-SDR v5"
+    role: "ADS-B 1090 MHz aircraft tracking"
+    antenna: "1090 MHz collinear / cantenna"
+    sample_rate: 2000000
+    ppm: 0
