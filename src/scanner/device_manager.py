@@ -10,10 +10,12 @@ def list_connected_devices() -> list[dict]:
     results = SoapySDR.Device.enumerate({"driver": "rtlsdr"})
     devices = []
     for r in results:
+        # SoapySDRKwargs supports [] access but not .get(); convert to plain dict
+        r_dict = dict(r)
         devices.append({
-            "serial": r.get("serial", ""),
-            "label": r.get("label", ""),
-            "driver": r.get("driver", ""),
+            "serial": r_dict.get("serial", ""),
+            "label":  r_dict.get("label", ""),
+            "driver": r_dict.get("driver", ""),
         })
     return devices
 

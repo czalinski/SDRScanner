@@ -10,7 +10,7 @@ from SoapySDR import SOAPY_SDR_CF32, SOAPY_SDR_RX
 log = logging.getLogger(__name__)
 
 BLOCK_SIZE = 32768  # samples per delivered block (~16 ms at 2.048 MS/s)
-_READ_CHUNK = 4096  # samples requested per readStream call
+_READ_CHUNK = 16384  # samples per readStream call — large enough to drain the USB buffer promptly
 
 
 class IQSource:
@@ -65,11 +65,20 @@ class IQSource:
             pos = 0
             buf = np.zeros(_READ_CHUNK, dtype=np.complex64)
 
+            _TIMEOUT = -1   # SoapySDR SOAPY_SDR_TIMEOUT — normal during startup
+            _consecutive_errors = 0
+
             while not self._stop.is_set():
                 sr = dev.readStream(stream, [buf], _READ_CHUNK)
                 if sr.ret < 0:
-                    log.warning("readStream error %d (serial=%s)", sr.ret, self.serial)
+                    if sr.ret != _TIMEOUT:
+                        log.warning("readStream error %d (serial=%s)", sr.ret, self.serial)
+                    _consecutive_errors += 1
+                    if _consecutive_errors > 50:
+                        log.error("Too many consecutive readStream errors — stopping capture")
+                        break
                     continue
+                _consecutive_errors = 0
                 if sr.ret == 0:
                     continue
 
