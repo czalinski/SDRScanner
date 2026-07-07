@@ -4,4 +4,5 @@ websockets>=12.0
 pyyaml>=6.0.1
 pyserial>=3.5
 numpy>=1.26.0
+scipy>=1.13.0
 # SoapySDR is installed system-wide via apt (python3-soapysdr); not on PyPI

@@ -9,7 +9,10 @@ devices:
     role: "BNSF Railroad scanner"
     antenna: "160 MHz dipole / yagi"
     sample_rate: 2048000
-    ppm: 0                     # calibrate per-device with kalibrate-rtl
+    center_mhz: 161.0           # 2 MHz window covers 160–162 MHz (all BNSF channels)
+    channel_config: railroad
+    ppm: 0                      # calibrate per-device with kalibrate-rtl
+    gain: null                  # null = AGC; set dB value to fix gain
 
   - id: marine
     serial: "RTLSDR_MRN"       # RTL-SDR.COM V3 #2
@@ -17,7 +20,10 @@ devices:
     role: "Marine VHF voice + AIS"
     antenna: "157 MHz vertical dipole"
     sample_rate: 2048000
+    center_mhz: 156.800         # 2 MHz window covers 155.8–157.8 MHz (priority channels)
+    channel_config: marine
     ppm: 0
+    gain: null
 
   - id: p25
     serial: "NOOELEC_P25"      # NooElec v5 #1 (pending)
@@ -25,7 +31,10 @@ devices:
     role: "P25 trunking — public safety"
     antenna: "Discone / broadband vertical"
     sample_rate: 2400000
+    center_mhz: null            # set after confirming P25 control channel frequencies
+    channel_config: p25
     ppm: 0
+    gain: null
 
   - id: adsb
     serial: "NOOELEC_ADSB"     # NooElec v5 #2 (pending)
@@ -33,4 +42,7 @@ devices:
     role: "ADS-B 1090 MHz aircraft tracking"
     antenna: "1090 MHz collinear / cantenna"
     sample_rate: 2000000
+    center_mhz: 1090.0
+    channel_config: null        # dump1090 handles ADS-B; no scan loop needed
     ppm: 0
+    gain: null
