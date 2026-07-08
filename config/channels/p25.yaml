@@ -1,34 +1,46 @@
 # P25 Trunking — Pierce County / Tacoma area
-# Device: NooElec v5 #1 (pending)
-# Decoded by: OP25 (GNU Radio based)
+# Device: NooElec v5 #1 (control channel) + NooElec v5 #2 (voice channel)
+# Decoder: Trunk Recorder (built with mbelib for software voice decode)
+#
+# Confirmed:
+#   - Police:  P25 Phase 2 (TDMA, AMBE+2 codec) — 800 MHz
+#   - Fire:    P25 Phase 1 (IMBE codec) — 800 MHz
+#   - Antenna: 860 MHz spider ground plane (8.7 cm elements)
+#   - Both services share the same P25 trunked system infrastructure
+#
+# TODO: Fill in from radioreference.com/db/browse/ctid/1694 (Pierce County):
+#   - Exact control channel frequency(ies)
+#   - Voice channel frequency list
+#   - WACN, System ID, NAC
+#   - Talkgroup IDs for police dispatch, fire dispatch, EMS, PCSO
 
-device: p25
-decode_encrypted: false      # only decode unencrypted traffic
+device_control: p25_control    # NooElec v5 #1 — locked on control channel
+device_voice:   p25_voice      # NooElec v5 #2 — follows assigned voice channels
+decode_encrypted: false
+
+band_mhz: 800
+rx_range_mhz: [851, 869]       # tower transmit range (what we receive)
 
 systems:
   - name: "Pierce County P25"
-    type: p25_phase1           # or p25_phase2 — verify from radioreference.com
-    wacn: 0xBEE00             # placeholder — verify on radioreference.com
-    sysid: 0x14A              # placeholder — verify on radioreference.com
-    nac: 0x14A                # placeholder
-    control_channels:
-      - 855.1625              # placeholder — fill from radioreference.com
-      - 855.6875
-    notes: >
-      Pierce County Regional Communications — covers Tacoma PD, Pierce County SO,
-      Tacoma Fire, Pierce County Fire. Verify control channels and WACN/SYSID
-      at radioreference.com before running OP25.
+    phase: mixed                # Phase 2 for police, Phase 1 for fire — TR handles both
+    wacn: null                  # TODO: from radioreference.com
+    sysid: null                 # TODO: from radioreference.com
+    nac: null                   # TODO: from radioreference.com
+    control_channels: []        # TODO: from radioreference.com
 
-  - name: "Tacoma Police (conventional fallback)"
-    type: conventional
-    channels:
-      - name: "TPD Dispatch"
-        freq_mhz: 0.000       # placeholder — check radioreference.com
-      - name: "TPD Tac 1"
-        freq_mhz: 0.000
+    talkgroups:
+      # TODO: Add talkgroup IDs from radioreference.com
+      # Examples of what to look for:
+      #   - Tacoma PD Dispatch (Phase 2)
+      #   - Tacoma PD TAC 1, TAC 2, ...
+      #   - Tacoma Fire Dispatch (Phase 1)
+      #   - Pierce County SO Dispatch
+      #   - Pierce County EMS
+      # Omit encrypted talkgroups (labeled "E" on radioreference.com)
 
-    notes: "Conventional channels used when P25 system goes down or for simplex ops"
-
-# TODO: Pull current trunking data from:
-#   https://www.radioreference.com/db/browse/ctid/1694  (Pierce County)
-#   https://www.radioreference.com/db/browse/stid/WA
+# Trunk Recorder config reference (generated separately in config/trunk-recorder.json)
+# Key settings:
+#   controlWarnRate: -1        (suppress missed control channel warnings)
+#   captureDir: /home/c_zal/SDRScanner/recordings
+#   modulation: P25            (handles Phase 1 and Phase 2 automatically)

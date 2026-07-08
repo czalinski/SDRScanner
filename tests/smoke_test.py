@@ -1,17 +1,19 @@
 """Quick sanity check for core scanner modules — no hardware required."""
 import sys
+import tempfile
 import time
+from pathlib import Path
 
 sys.path.insert(0, ".")
 
 import numpy as np
 
 print("Importing modules...")
-from src.scanner.audio_sink import AudioSink
 from src.scanner.channel_state import ChannelState, State
 from src.scanner.config_loader import load_channel_config, load_devices
 from src.scanner.fft_engine import Channel, FFTEngine, THRESHOLD_DB
-from src.scanner.nfm_demod import NFMDemodulator
+from src.scanner.nfm_demod import AUDIO_RATE, NFMDemodulator
+from src.scanner.recorder import Recorder, _shift_to_baseband
 
 print("  All imports OK")
 
@@ -85,5 +87,39 @@ demod.reset()
 audio2 = demod.demodulate(make_noise())
 assert len(audio2) == len(audio)
 print("  NFMDemodulator reset: OK")
+
+# ── Recorder — WAV write + _shift_to_baseband ─────────────────────────────────
+FS = 2.048e6
+CENTER = 161.0e6
+t = np.arange(32768, dtype=np.float64) / FS
+offset = 160.470e6 - CENTER
+bb = _shift_to_baseband(
+    (np.exp(2j * np.pi * offset * t) * 0.3).astype(np.complex64),
+    offset, FS,
+)
+assert bb.dtype == np.complex64
+assert abs(np.mean(np.angle(bb))) < 0.1, "Baseband shift should center near 0 Hz"
+
+# Confirm Recorder writes a WAV file for a synthetic tone sequence
+with tempfile.TemporaryDirectory() as tmpdir:
+    ch = Channel("TestCh", 160.470e6)
+    rec = Recorder(
+        dev_id="test", serial="FAKE", center_freq=CENTER,
+        sample_rate=FS, channels=[ch],
+        recordings_dir=tmpdir,
+    )
+    # Directly exercise _flush by loading the buffer
+    audio_chunk = NFMDemodulator(FS).demodulate(
+        _shift_to_baseband(
+            (np.exp(2j * np.pi * offset * t) * 0.3).astype(np.complex64),
+            offset, FS,
+        )
+    )
+    rec._buffers[0] = [audio_chunk]
+    rec._flush(0, ch)
+    wav_files = list(Path(tmpdir).rglob("*.wav"))
+    assert len(wav_files) == 1, f"Expected 1 WAV file, got {len(wav_files)}"
+    assert wav_files[0].stat().st_size > 44, "WAV file too small (header only?)"
+    print("  Recorder WAV flush: OK → %s" % wav_files[0].name)
 
 print("\nAll checks passed.")
