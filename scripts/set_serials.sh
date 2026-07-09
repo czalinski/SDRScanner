@@ -5,6 +5,7 @@
 # Usage:
 #   ./set_serials.sh railroad    — programs serial RTLSDR_RR
 #   ./set_serials.sh marine      — programs serial RTLSDR_MRN
+#   ./set_serials.sh ais         — programs serial RTLSDR_AIS
 #   ./set_serials.sh adsb        — programs serial RTLSDR_ADSB
 #
 # P25 (fire/police) runs on a standalone Uniden SDS200, not an RTL-SDR
@@ -17,9 +18,10 @@ ROLE="${1:-}"
 case "$ROLE" in
   railroad) SERIAL="RTLSDR_RR"   ;;
   marine)   SERIAL="RTLSDR_MRN"  ;;
+  ais)      SERIAL="RTLSDR_AIS"  ;;
   adsb)     SERIAL="RTLSDR_ADSB" ;;
   *)
-    echo "Usage: $0 {railroad|marine|adsb}"
+    echo "Usage: $0 {railroad|marine|ais|adsb}"
     echo ""
     echo "Plug in ONLY the dongle you want to label, then run this script."
     exit 1

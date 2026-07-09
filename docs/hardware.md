@@ -31,7 +31,9 @@
 
 **Assigned roles:**
 - #1 (`RTLSDR_RR`): BNSF Railroad scanner, 160–162 MHz
-- #2 (`RTLSDR_MRN`): Marine VHF voice + AIS, 156–162 MHz
+- #2 (`RTLSDR_MRN`): Marine VHF voice, 156–162 MHz (AIS moved to a
+  dedicated dongle — see below; RTL-SDR dongles are exclusive-access and
+  can't run rtl_ais and the NFM voice scanner on the same one)
 
 ### P25 Trunking — moved off this stack
 
@@ -44,8 +46,21 @@ uses the same DPD 769–775 MHz omni antenna spec'd for this project
 (see `docs/antennas.md` §3), fed directly — no splitter or preamp needed
 since it's a single receiver.
 
-The two NooElec RTL-SDR v5 dongles previously planned for this role are no
-longer needed for the project.
+Of the two NooElec RTL-SDR v5 dongles originally planned for P25, one is
+reused below as a dedicated AIS receiver; the other is a spare.
+
+### NooElec RTL-SDR v5 — dedicated AIS
+
+| Spec | Value |
+|------|-------|
+| Tuner | Rafael Micro R828D |
+| Frequency range | 500 kHz – 1.75 GHz |
+| Connector | SMA female |
+| Noise figure | ~3 dB typical |
+
+**Assigned role:** `RTLSDR_AIS` — AIS vessel tracking, split off the marine
+antenna via a 2-way splitter (156–162 MHz is the same band as marine voice,
+so no separate antenna build is needed).
 
 ## USB Topology
 
@@ -53,11 +68,14 @@ longer needed for the project.
 OrangePi USB 3.0 port
 └── USB Hub (Bus 001 / 002)
     ├── RTL-SDR.COM V3 #1  (RTLSDR_RR)
-    └── RTL-SDR.COM V3 #2  (RTLSDR_MRN)
+    ├── RTL-SDR.COM V3 #2  (RTLSDR_MRN)
+    ├── NooElec v5         (RTLSDR_AIS)
+    └── [slot] RTL-SDR (cheap) (RTLSDR_ADSB) — pending purchase
 ```
 
-**Important:** Use a powered USB hub if adding more dongles later (e.g. for
-ADS-B). Each RTL-SDR draws ~300 mA.
+**Important:** Use a powered USB hub — 4 dongles running concurrently draws
+more than most Pi USB ports can supply on their own. Each RTL-SDR draws
+~300 mA.
 
 ## Initial Setup Steps
 
