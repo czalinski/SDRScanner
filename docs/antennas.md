@@ -6,8 +6,8 @@
 |--------|--------------------|--------------|
 | RTL-SDR.COM V3 #1 | 160–162 MHz (Railroad) | 5/8λ vertical or dipole |
 | RTL-SDR.COM V3 #2 | 156–162 MHz (Marine VHF + AIS) | 5/8λ vertical |
-| NooElec v5 #1 | P25 trunking (varies by system) | Discone / broadband |
-| NooElec v5 #2 | 1090 MHz (ADS-B) | Collinear or spider |
+| Uniden SDS200 (standalone, not RTL-SDR) | 763–775 MHz (P25 fire/police) | DPD 769–775 MHz omni collinear |
+| RTL-SDR (cheap, ~$25, optional) | 1090 MHz (ADS-B) | Collinear or spider |
 
 ---
 
@@ -51,22 +51,89 @@ Band is narrow enough that a 159 MHz center antenna covers everything.
 
 ---
 
-## 3. P25 Broadband Antenna (NooElec v5 #1)
+## 3. P25 Antenna — Pierce County (Uniden SDS200, standalone)
 
-**Target:** Pierce County P25 system (exact frequencies TBD from radioreference.com)  
-P25 Phase 1 in the Pacific Northwest commonly uses 700/800 MHz or VHF bands.
+**Confirmed (radioreference.com):** "A P25 Phase 2 TDMA 700 MHz Motorola trunked
+radio system with 21 sites, 38 channels and 74 talk paths."
 
-### Discone antenna
-- Covers 25 MHz–1.3 GHz — best choice until P25 frequencies are confirmed
-- Commercially available or can be built from brass rods and plate
-- 50 Ω feed impedance across the range
+**Target:** 763–775 MHz (public safety base/repeater-tx block — what a
+scanner receives). Center 769 MHz. Confirmed against real documented 700 MHz
+P25 control/voice channels, which cluster at 769–774 MHz (e.g. WSDOT P25:
+769.69/770.17/770.71/774.33 MHz).
 
-### After confirming P25 frequencies
-- Cut a resonant collinear or yagi for the specific band (VHF, UHF, 700, 800 MHz)
+**21 sites = multi-site trunking.** The system can hand a call to any site
+depending on load and location — omnidirectional only, no yagi.
+
+**P25 reception moved off the RTL-SDR/Orange Pi stack entirely.** A
+standalone **Uniden SDS200** handles fire/police directly — its True I/Q SDR
+receiver handles this multi-site/simulcast environment better than a DIY
+software decode chain would, at comparable cost to the RF chain (LNA +
+multicoupler) the RTL-SDR route would have needed. This section now only
+covers the antenna and feedline; there's no splitting, LNA, or multicoupler
+to spec since the SDS200 is a single receiver with its own adequate
+front-end sensitivity (adding an external preamp ahead of an already-tuned
+commercial scanner more often causes overload than improvement).
+
+### Antenna — DPD Productions 700 MHz UHF Vertical Outdoor Base Antenna
+
+**Chosen.** Verified specs, exact match to the corrected 763–775 MHz target:
+
+| Spec | Value |
+|------|-------|
+| Passband | 769–775 MHz |
+| Gain | 6 dBi, omnidirectional |
+| Polarization | Vertical |
+| VSWR | 1.5:1 or less on center |
+| Connector | N female, 24" RG8X pigtail |
+| Dimensions | 57" tall × 1.25" wide, 2 lb |
+| Mount | Standard 1¼" mast, no ground plane needed |
+| Price | $189.95 |
+
+**Mount:** outdoor, on the house siding just outside the window (can go
+higher on the same wall if clearance allows — more height is better).
+
+### Lightning protection — required for an outdoor house-mounted antenna
+Not needed for the earlier attic-mount plan, but mandatory now that the
+antenna lives on the exterior of the house:
+- **Coax lightning/surge arrestor** at the point the cable enters the
+  building, rated for the connector type and frequency in use.
+- **Grounding block** at that same entry point, bonded to the house's
+  electrical grounding system (NEC Article 810 requirement for outdoor
+  antenna installations, not optional best practice).
+- **Ground the mast itself.**
+- Any coax run with outdoor exposure needs a UV-resistant outdoor-rated
+  jacket; indoor sections can be standard.
+
+### Signal chain
+
+```
+DPD antenna (N-female) → coax → lightning arrestor + ground block
+  (at wall entry) → coax → N-to-BNC adapter/cable → Uniden SDS200
+```
+
+**Connector note:** the SDS200's antenna input is **BNC female** (confirmed
+from Uniden's own documentation), not SMA. The DPD antenna's pigtail is
+N-female. The feedline needs to terminate **N-male on the antenna end,
+BNC-male on the SDS200 end** — a single N-to-BNC adapter or a purpose-made
+cable, no multi-way split needed since the SDS200 is one receiver.
+
+### Cable
+Loss estimates at 769 MHz (extrapolated from published 440 MHz figures via
+√f scaling — confirm exact datasheet numbers before ordering):
+
+| Cable | ~769 MHz loss (est.) | Use for |
+|-------|----------------------|---------|
+| RG-58 | ~14 dB/100 ft | Short runs only, < 15 ft |
+| RG-8X | ~11 dB/100 ft | Short-to-moderate runs |
+| LMR-240 | ~7 dB/100 ft | Moderate runs |
+| LMR-400 | ~3.6 dB/100 ft | Runs past ~30–40 ft |
+
+Actual run length (mount point to where the SDS200 sits indoors) determines
+which is worth it — under ~15 ft, even RG-8X costs under 2 dB.
 
 ---
 
-## 4. ADS-B Antenna (NooElec v5 #2, 1090 MHz)
+## 4. ADS-B Antenna (optional, 1090 MHz — separate cheap RTL-SDR, not NooElec v5)
 
 **λ at 1090 MHz = 27.5 cm**
 
@@ -96,5 +163,9 @@ P25 Phase 1 in the Pacific Northwest commonly uses 700/800 MHz or VHF bands.
 | 5–15 m | LMR-400 |
 | > 15 m | Consider a low-noise preamp at the antenna |
 
-All RTL-SDR.COM V3 and NooElec v5 dongles use SMA female connectors.  
+RTL-SDR.COM V3 dongles (railroad, marine) and the optional cheap ADS-B
+RTL-SDR use SMA female connectors.
 Pigtail: **SMA male → F-type** or directly to RG-316 with SMA male crimp.
+
+The SDS200 (P25) is BNC female — see §3 for its N-to-BNC feedline, separate
+from the RTL-SDR/Orange Pi stack.

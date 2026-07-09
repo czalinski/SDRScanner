@@ -25,30 +25,12 @@ devices:
     ppm: 0
     gain: null
 
-  - id: p25_control
-    serial: "NOOELEC_P25"      # NooElec v5 #1 (pending) — locked on P25 control channel
-    model: "NooElec RTL-SDR v5"
-    role: "P25 trunking — control channel monitor"
-    antenna: "860 MHz spider ground plane (8.7 cm elements) — shared via splitter"
-    sample_rate: 2400000
-    center_mhz: null            # TODO: set to P25 control channel freq from radioreference.com
-    channel_config: null        # trunk-recorder manages this device directly
-    ppm: 0
-    gain: null
-
-  - id: p25_voice
-    serial: "NOOELEC_ADSB"     # NooElec v5 #2 (pending) — follows voice channel assignments
-    model: "NooElec RTL-SDR v5"
-    role: "P25 trunking — voice channel receiver"
-    antenna: "860 MHz spider ground plane (8.7 cm elements) — shared via splitter"
-    sample_rate: 2400000
-    center_mhz: null            # trunk-recorder tunes this dynamically
-    channel_config: null        # trunk-recorder manages this device directly
-    ppm: 0
-    gain: null
-    notes: >
-      Repurposed from ADSB role. ADS-B handled by a separate inexpensive RTL-SDR.
-      Both Phase 1 (fire/IMBE) and Phase 2 (police/AMBE+2) decoded in software via mbelib.
+  # P25 trunking (Pierce County fire/police) moved off this stack entirely —
+  # handled by a standalone Uniden SDS200 scanner, not RTL-SDR/trunk-recorder.
+  # The two NooElec v5 dongles previously planned for control/voice channels
+  # are no longer needed for this project. SDS200 uses the same DPD
+  # 769-775 MHz omni antenna, fed directly (no LNA/multicoupler — single
+  # receiver, no splitting needed).
 
   - id: adsb
     serial: "RTLSDR_ADSB"      # Cheap RTL-SDR (to be purchased ~$25) — separate from NooElec v5s

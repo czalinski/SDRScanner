@@ -67,6 +67,41 @@ if ! command -v dump1090 &>/dev/null && ! command -v readsb &>/dev/null; then
     }
 fi
 
+# ── ADS-B feeders (piaware, fr24feed, adsbx-feed) ─────────────────────────────
+# All three read dump1090-fa's Beast output (port 30005) — lightweight
+# forwarding daemons, no extra decode cost. Each needs a one-time interactive
+# claim/config step after install (see log output from each installer):
+#   piaware:  sudo piaware-config -force -latitude <lat> -longitude <lon>
+#             then claim at flightaware.com/adsb/piaware/claim
+#   fr24feed: sudo dpkg-reconfigure fr24feed   (enter your sharing key)
+#   adsbx-feed: no account needed, just needs receiver lat/lon in its config
+if ! command -v piaware &>/dev/null; then
+    log "Installing piaware (FlightAware feeder)..."
+    sudo apt-get install -y --no-install-recommends piaware 2>/dev/null || \
+        log "piaware not in apt for this arch — install manually from flightaware.com/adsb/piaware/install"
+fi
+
+if ! command -v fr24feed &>/dev/null; then
+    log "Installing fr24feed (FlightRadar24 feeder)..."
+    sudo apt-get install -y --no-install-recommends fr24feed 2>/dev/null || \
+        log "fr24feed not in apt for this arch — install manually from flightradar24.com/share-your-data"
+fi
+
+if ! command -v adsbx-feed &>/dev/null; then
+    log "Installing ADS-B Exchange feeder (Docker-based)..."
+    if command -v docker &>/dev/null; then
+        log "Docker present — ADS-B Exchange feed container can be started post-install; see adsbexchange.com/how-to-feed"
+    else
+        log "Docker not installed — ADS-B Exchange feeder needs it. Install docker separately if you want this feed."
+    fi
+fi
+
+# ── Kiosk display (7" Pi display — local dump1090-fa SkyAware map) ───────────
+# Requires a desktop/X session on the display; only relevant if a GUI is
+# configured on this Orange Pi. Uncomment once the display + X session are set up:
+# sudo apt-get install -y --no-install-recommends chromium unclutter
+# Autostart: chromium --kiosk --noerrdialogs --disable-infobars http://localhost:8080
+
 # ── rtl-ais (AIS marine vessel decoder) ───────────────────────────────────────
 if ! command -v rtl_ais &>/dev/null; then
     log "Building rtl-ais from source..."
@@ -78,14 +113,8 @@ if ! command -v rtl_ais &>/dev/null; then
     log "rtl-ais installed."
 fi
 
-# ── OP25 (P25 decoder) — skip until NooElec v5 devices arrive ─────────────────
-# log "Building OP25 (GNU Radio P25 decoder)..."
-# This requires GNU Radio which is a large install; uncomment when NooElec arrives.
-# sudo apt-get install -y gnuradio gnuradio-dev gr-osmosdr
-# TMP=$(mktemp -d)
-# git clone --depth=1 https://github.com/boatbod/op25.git "$TMP/op25"
-# cd "$TMP/op25" && mkdir build && cd build && cmake .. && make -j"$(nproc)" && sudo make install
-# rm -rf "$TMP"
+# NOTE: P25 (fire/police) runs on a standalone Uniden SDS200, not this stack.
+# No OP25/GNU Radio dependency here — see docs/hardware.md.
 
 # ── Python virtual environment ─────────────────────────────────────────────────
 log "Setting up Python virtual environment..."

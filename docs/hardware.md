@@ -33,21 +33,19 @@
 - #1 (`RTLSDR_RR`): BNSF Railroad scanner, 160–162 MHz
 - #2 (`RTLSDR_MRN`): Marine VHF voice + AIS, 156–162 MHz
 
-### NooElec RTL-SDR v5 ×2 *(pending purchase)*
+### P25 Trunking — moved off this stack
 
-| Spec | Value |
-|------|-------|
-| Tuner | Rafael Micro R828D |
-| Frequency range | 500 kHz – 1.75 GHz |
-| ADC | RTL2832U, 8-bit |
-| TCXO | Yes (0.5 ppm) |
-| ESD protection | Yes (improved vs. V3) |
-| Connector | SMA female |
-| Noise figure | ~3 dB typical (slightly better than V3) |
+Fire/police (Pierce County P25 Phase 2 TDMA, 21-site trunked) is now handled
+by a standalone **Uniden SDS200** scanner, not RTL-SDR/trunk-recorder. Its
+True I/Q SDR receiver handles the multi-site/simulcast environment better
+than a DIY software decode chain, and its cost was comparable to the RF
+chain (LNA + multicoupler) this project would otherwise have needed. It
+uses the same DPD 769–775 MHz omni antenna spec'd for this project
+(see `docs/antennas.md` §3), fed directly — no splitter or preamp needed
+since it's a single receiver.
 
-**Assigned roles:**
-- #1 (`NOOELEC_P25`): P25 trunking — Pierce County / Tacoma public safety
-- #2 (`NOOELEC_ADSB`): ADS-B 1090 MHz aircraft tracking
+The two NooElec RTL-SDR v5 dongles previously planned for this role are no
+longer needed for the project.
 
 ## USB Topology
 
@@ -55,12 +53,11 @@
 OrangePi USB 3.0 port
 └── USB Hub (Bus 001 / 002)
     ├── RTL-SDR.COM V3 #1  (RTLSDR_RR)
-    ├── RTL-SDR.COM V3 #2  (RTLSDR_MRN)
-    ├── [slot] NooElec v5 #1  (NOOELEC_P25)    — pending
-    └── [slot] NooElec v5 #2  (NOOELEC_ADSB)   — pending
+    └── RTL-SDR.COM V3 #2  (RTLSDR_MRN)
 ```
 
-**Important:** Use a powered USB hub when running all 4 dongles. Each RTL-SDR draws ~300 mA.
+**Important:** Use a powered USB hub if adding more dongles later (e.g. for
+ADS-B). Each RTL-SDR draws ~300 mA.
 
 ## Initial Setup Steps
 

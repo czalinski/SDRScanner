@@ -8,8 +8,12 @@ Multi-channel Software Defined Radio scanner running on an Orange Pi Max V1.1 (R
 |--------|------|--------|
 | RTL-SDR.COM V3 #1 (R820T2) | BNSF Railroad scanner | Connected |
 | RTL-SDR.COM V3 #2 (R820T2) | Marine VHF voice | Connected |
-| NooElec RTL-SDR v5 #1 | P25 trunking (public safety) | Pending purchase |
-| NooElec RTL-SDR v5 #2 | ADS-B (1090 MHz) or AIS | Pending purchase |
+| RTL-SDR (cheap, ~$25) | ADS-B (1090 MHz), fed to FlightAware/FR24/ADS-B Exchange | Pending purchase |
+| Uniden SDS200 (standalone scanner) | P25 trunking — Pierce County fire/police | Planned purchase |
+| 7" Pi display | Local kiosk map (dump1090-fa SkyAware) | Purchased |
+
+P25 (fire/police) runs on a standalone Uniden SDS200, not the RTL-SDR/Orange
+Pi stack — see `docs/hardware.md` and `docs/antennas.md` §3.
 
 Target host: `czalinski@192.168.68.230`
 
@@ -28,10 +32,12 @@ tests/          Unit and integration tests
 
 - `rtl-sdr` — userspace driver and CLI tools
 - `SoapySDR` + `SoapyRTLSDR` — hardware abstraction (multi-device)
-- `dump1090` — ADS-B decoder (1090 MHz)
+- `dump1090-fa` — ADS-B decoder (1090 MHz), feeds piaware/fr24feed/adsbx-feed
 - `rtl-ais` — AIS marine vessel decoder
-- `op25` — GNU Radio P25 decoder (built from source)
 - Python packages: see `requirements.txt`
+
+P25 no longer runs on this stack (standalone Uniden SDS200), so `op25` /
+GNU Radio are not a dependency here.
 
 ## Device Serial Number Assignment
 
@@ -55,5 +61,5 @@ python3 -m src.scanner.main
 
 - BNSF AAR channels: `config/channels/railroad.yaml`
 - Marine VHF: `config/channels/marine.yaml`
-- Pierce County P25: `config/channels/p25.yaml` + `config/trunking/`
-- ADS-B: 1090 MHz (no config needed — fixed frequency)
+- Pierce County P25: standalone Uniden SDS200 (not part of this repo's config)
+- ADS-B: `config/channels/adsb.yaml` — fixed 1090 MHz, feeder settings, kiosk display

@@ -1,6 +1,9 @@
 # ADS-B — 1090 MHz Aircraft Tracking
-# Device: NooElec v5 #2 (pending)
-# Decoded by: dump1090 / readsb
+# Device: adsb (separate cheap RTL-SDR, ~$25 — not a NooElec v5; P25 moved
+# off this stack entirely, see config/devices.yaml)
+# Decoded by: dump1090-fa
+# Display: 7" Pi display runs a kiosk-mode browser against dump1090-fa's
+# built-in SkyAware web map (json_port below) for a live overlay map.
 
 device: adsb
 
@@ -12,7 +15,7 @@ dump1090:
   net_port_beast: 30005       # Beast binary output (for feeders)
   net_port_sbs: 30003         # SBS-1 BaseStation format
   net_port_raw: 30002         # Raw AVR format
-  json_port: 8080             # dump1090 web map port
+  json_port: 8080             # dump1090 web map port — also the kiosk display URL
 
 antenna:
   type: "1090 MHz collinear or cantenna"
@@ -21,8 +24,24 @@ antenna:
     works well. A spider antenna or coax collinear improves range significantly.
     Mount as high and in the open as possible for maximum range.
 
+# Feeders — all three read the same dump1090-fa Beast output (port 30005),
+# each a lightweight forwarding daemon, no extra decode cost:
+feeders:
+  flightaware:
+    enabled: true
+    client: piaware
+    note: "Requires a FlightAware account to claim the feeder (free); grants free Enterprise-tier data access in return."
+  flightradar24:
+    enabled: true
+    client: fr24feed
+    note: "Requires an FR24 account + sharing key (free); grants free Business-tier access in return."
+  adsbexchange:
+    enabled: true
+    client: adsbx-feed
+    note: "No account needed. Does not honor aircraft-blocking requests (military/gov included)."
+
 mlat:
-  enabled: false              # enable if feeding to mlat network (adsbexchange, etc.)
+  enabled: true               # feeding aggregator networks — mlat helps position non-ADS-B-equipped aircraft
   receiver_lat: 47.25         # Tacoma approximate — update with exact location
   receiver_lon: -122.44
   receiver_alt_m: 50          # update with actual antenna height MSL
