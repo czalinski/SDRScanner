@@ -7,7 +7,7 @@ devices:
     serial: "RTLSDR_RR"        # RTL-SDR.COM V3 #1
     model: "RTL-SDR.COM V3 (R820T2)"
     role: "BNSF Railroad scanner"
-    antenna: "160 MHz dipole / yagi"
+    antenna: "161 MHz J-pole (equipment ordered, not yet built — see docs/antennas.md §1)"
     sample_rate: 2048000
     center_mhz: 161.0           # 2 MHz window covers 160–162 MHz (all BNSF channels)
     channel_config: railroad
@@ -18,7 +18,7 @@ devices:
     serial: "RTLSDR_MRN"       # RTL-SDR.COM V3 #2
     model: "RTL-SDR.COM V3 (R820T2)"
     role: "Marine VHF voice"
-    antenna: "157 MHz vertical dipole"
+    antenna: "159 MHz J-pole (equipment ordered, not yet built — see docs/antennas.md §2)"
     sample_rate: 2048000
     center_mhz: 156.800         # 2 MHz window covers 155.8–157.8 MHz (priority channels)
     channel_config: marine
@@ -30,9 +30,8 @@ devices:
   # SDS200 uses the same DPD 769-775 MHz omni antenna spec'd for this
   # project, fed directly (no LNA/multicoupler — single receiver, no
   # splitting needed). Of the two originally-planned NooElec v5 dongles, one
-  # is reused below for ADS-B; the other (NooElec SMArTee v5, bias-tee
-  # enabled) is reused for HAM/HF — see `ham` below, config pending hardware
-  # decision (upconverter vs. full HF bundle).
+  # is reused below for ADS-B; the other (NooElec SMArTee v5) is reused for
+  # AIS below — see `ais`.
 
   - id: adsb
     serial: "RTLSDR_ADSB"      # NooElec v5 #2 — repurposed from spare P25 dongle
@@ -45,11 +44,28 @@ devices:
     ppm: 0
     gain: null
 
-  - id: ham
-    serial: null                # TODO: not yet burned — see set_serials.sh ham role
+  - id: ais
+    serial: "RTL_AIS"           # NooElec SMArTee v5 — repurposed from the HAM role below.
+                                 # Shortened from RTLSDR_AIS: this dongle's longer product
+                                 # string ("NESDR SMArTee v5") left less EEPROM space than
+                                 # the plain SMArt v5 did, and RTLSDR_AIS (10 chars) didn't fit.
+                                 # (AIS needs its own dedicated dongle: exclusive-access,
+                                 # and 161.975/162.025 MHz falls outside the marine voice
+                                 # dongle's 155.8-157.8 MHz window)
     model: "NooElec NESDR SMArTee v5 (bias-tee enabled)"
+    role: "AIS vessel tracking — Commencement Bay"
+    antenna: "162 MHz J-pole (dedicated — not a splitter off marine, see docs/antennas.md §5)"
+    sample_rate: 2048000
+    center_mhz: 162.000          # covers both AIS ch 87B/88B: 161.975 / 162.025 MHz
+    channel_config: null         # rtl_ais + src/display/ais_listener.py handle AIS directly
+    ppm: 0
+    gain: null
+
+  - id: ham
+    serial: null                # TODO: not yet burned — pending XTR bundle arrival
+    model: "NooElec NESDR SMArt XTR (HF Bundle)"
     role: "HAM HF (SSB/CW) monitoring"
-    antenna: null                # TODO: depends on band(s) chosen
+    antenna: null                # TODO: bundle includes antennas + balun; band(s) TBD
     sample_rate: null            # TODO
     center_mhz: null             # TODO: HF band segment(s) to cover
     channel_config: null         # TODO: HF scanning needs voice-activity detection,
@@ -57,8 +73,9 @@ devices:
     ppm: 0
     gain: null
     notes: >
-      Decided: keep this SMArTee v5, add a Ham It Up Plus v2 upconverter
-      powered via its built-in bias tee (not the XTR bundle — no need for
-      a second RTL-SDR). Upconverter not yet purchased/wired in. Needs an
-      SSB/CW demodulator — the existing NFM demod chain (railroad/marine)
-      doesn't apply.
+      Decided: buy the NooElec SMArt XTR HF Bundle (XTR + Ham It Up Plus v2
+      upconverter + antennas + balun) rather than just an upconverter for the
+      SMArTee v5 — the SMArTee is now needed for AIS instead (see `ais`
+      above), so a bundled dedicated dongle for HAM avoids a conflict. Not
+      yet purchased. Needs an SSB/CW demodulator — the existing NFM demod
+      chain (railroad/marine) doesn't apply.

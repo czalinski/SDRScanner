@@ -9,9 +9,10 @@ Multi-channel Software Defined Radio scanner running on an Orange Pi Max V1.1 (R
 | RTL-SDR.COM V3 #1 (R820T2) | BNSF Railroad scanner | Connected |
 | RTL-SDR.COM V3 #2 (R820T2) | Marine VHF voice | Connected |
 | NooElec NESDR SMArt v5 (R820T2) | ADS-B (1090 MHz), fed to FlightAware/FR24/ADS-B Exchange | Connected |
-| NooElec NESDR SMArTee v5 (bias-tee) | HAM HF (SSB/CW) | Connected — serial/antenna/demod pending |
+| NooElec NESDR SMArTee v5 (bias-tee) | AIS ship tracking | Connected — serial/antenna feed pending |
+| NooElec NESDR SMArt XTR HF Bundle | HAM HF (SSB/CW) | Not yet purchased |
 | Uniden SDS200 (standalone scanner) | P25 trunking — Pierce County fire/police | Planned purchase |
-| 7" Pi display | Local kiosk map (dump1090-fa SkyAware) | Purchased |
+| HDMI monitor (primary display) | Full-screen ADS-B+AIS live map kiosk | Built — `src/display/adsb_map.py`, systemd auto-start |
 
 Long-term: a second monitor is also planned, showing live audio-output
 status across Marine/Railroad/HAM (not built yet — see `TODO.md`).
@@ -36,7 +37,12 @@ tests/          Unit and integration tests
 
 - `rtl-sdr` — userspace driver and CLI tools
 - `SoapySDR` + `SoapyRTLSDR` — hardware abstraction (multi-device)
-- `dump1090-fa` — ADS-B decoder (1090 MHz), feeds piaware/fr24feed/adsbx-feed
+- `dump1090` — ADS-B decoder (1090 MHz), source-built (not the `dump1090-fa`
+  apt package — no HTTP JSON server, uses `--write-json` instead), feeds
+  piaware/fr24feed/adsbx-feed
+- `rtl-ais` — AIS NMEA decoder (marine vessel tracking)
+- `pygame` — full-screen ADS-B+AIS live map kiosk (`src/display/adsb_map.py`)
+- `pyais` — AIS NMEA sentence parsing (`src/display/ais_listener.py`)
 - Python packages: see `requirements.txt`
 
 P25 no longer runs on this stack (standalone Uniden SDS200), so `op25` /
@@ -66,3 +72,5 @@ python3 -m src.scanner.main
 - Marine VHF: `config/channels/marine.yaml`
 - Pierce County P25: standalone Uniden SDS200 (not part of this repo's config)
 - ADS-B: `config/channels/adsb.yaml` — fixed 1090 MHz, feeder settings, kiosk display
+- AIS: no dedicated channel config — `rtl_ais` decodes both AIS channels
+  (161.975/162.025 MHz) in one capture; see `config/devices.yaml` `ais` entry

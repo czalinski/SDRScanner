@@ -1,77 +1,83 @@
 # SDRScanner — TODO
 
 Current scope: railroad + marine + HAM audio scanning with playback
-(Orange Pi), and ADS-B with a live map + feeds to
-FlightAware/FlightRadar24/ADS-B Exchange. P25 (fire/police) runs on a
-standalone Uniden SDS200 — its antenna/RF chain is tracked separately, not
-part of this list. AIS is explicitly out of scope (dropped — not doing it).
+(Orange Pi), ADS-B with a full-screen live map (built and kiosk-wired this
+session), and AIS ship tracking on the same map. P25 (fire/police) runs on
+a standalone Uniden SDS200 — its antenna/RF chain is tracked separately,
+not part of this list.
 
-Long-term: two-monitor setup — one showing the ADS-B live map (dump1090-fa
-SkyAware, already planned), one showing current audio-output status across
+Long-term: two-monitor setup — one showing the ADS-B+AIS live map (built,
+see below), one showing current audio-output status across
 Marine/Railroad/HAM (not built yet — see "Declared but not built" below).
 
 ## Resolved this session
 
-- [x] Found the Pi at its new IP (`192.168.68.98`, was `.230`) — updated in
-      `CLAUDE.md` and `docs/hardware.md`.
-- [x] Confirmed all 4 dongles enumerate: `RTLSDR_RR`, `RTLSDR_MRN`,
-      `RTLSDR_ADSB` (burned this session), and an unserialized NooElec
-      SMArTee v5 (now assigned to HAM, see below).
-- [x] **Diagnosed and fixed USB hub power issue**: a bus-powered 4-port hub
-      caused constant disconnect/reconnect churn under load — confirmed via
-      dmesg (repeated re-enumeration, a `device descriptor read` error).
-      Swapped to an externally-powered hub, which resolved it. You may still
-      swap to a different powered-hub model for a single shared power
-      supply — not urgent, current one works.
-- [x] Live ADS-B reception confirmed via `dump1090` (SoapySDR backend) —
-      strong, continuous DF17/Mode-S traffic from multiple aircraft.
-- [x] **AIS dropped from scope entirely** — removed the `ais` device from
-      `devices.yaml`, the `ais` role from `set_serials.sh`, the `rtl_ais`
-      launch block from `start_scanner.sh`, the rtl-ais build step from
-      `install.sh`, the AIS section from `docs/hardware.md`/`docs/antennas.md`,
-      and the AIS block from `config/channels/marine.yaml`.
-- [x] **HAM added to scope**: the second NooElec v5 (a SMArTee variant,
-      bias-tee enabled) is now assigned the `ham` role in `devices.yaml`
-      (serial `RTLSDR_HAM`, not yet burned). Scope is HF (SSB/CW), not
-      2m/70cm FM — this needs a demodulator this codebase doesn't have yet
-      (see Software section below).
+- [x] Found the Pi at its new IP (`192.168.68.98`, was `.230`).
+- [x] **Diagnosed and fixed a USB hub power issue** (bus-powered hub caused
+      disconnect/reconnect churn under load) — externally-powered hub
+      resolved it.
+- [x] **Built the ADS-B live map** (`src/display/adsb_map.py`) — full-screen
+      pygame kiosk over cached real OpenStreetMap tiles, wired into systemd
+      (`dump1090-adsb.service` + `adsb-map.service`) and verified via an
+      actual reboot. Tuned to your exact address (Stadium District, Tacoma)
+      and a ~20mi visual-range zoom instead of the whole region.
+      Self-heals GNOME's fullscreen/focus-loss quirk; dark-red/black
+      colors for contrast against the light basemap.
+- [x] **AIS reinstated** (previously dropped, brought back this session):
+      `src/display/ais_listener.py` decodes `rtl_ais`'s NMEA UDP stream via
+      `pyais`'s `AISTracker` (handles multi-part message reassembly
+      automatically) and writes `ships.json` the same way dump1090 writes
+      `aircraft.json`. `adsb_map.py` now renders both — aircraft bright
+      red, ships dark blue. Verified the decode logic against sample AIVDM
+      sentences (position + multi-part static/voyage data); **not yet
+      tested against real RF**, since the AIS dongle isn't wired up yet
+      (see Hardware below).
+- [x] **HAM hardware plan changed**: buying the NooElec SMArt XTR HF Bundle
+      (XTR + Ham It Up Plus v2 + antennas + balun) instead of just an
+      upconverter, since the SMArTee v5 originally earmarked for HAM is now
+      needed for AIS instead. XTR bundle not yet purchased.
 
 ## Hardware
 
-- [ ] Burn `RTLSDR_HAM` serial: `./scripts/set_serials.sh ham`
-- [ ] **HAM hardware decided**: buy a Ham It Up Plus v2 upconverter, power
-      it via the SMArTee v5's built-in bias tee (not the XTR bundle — no
-      need for a second RTL-SDR). Purchase + wire in.
+- [x] AIS serial burned: `RTL_AIS` (shortened from `RTLSDR_AIS` — didn't fit
+      this dongle's EEPROM string space). Replugged and confirmed.
+- [x] **AIS antenna decided**: a dedicated third J-pole (161.975/162.025 MHz,
+      see `docs/antennas.md` §5), not a splitter off the marine antenna —
+      avoids splitter loss. Not yet built.
+- [ ] Build the three J-poles — railroad (161 MHz), marine (159 MHz), AIS
+      (162 MHz). Equipment already ordered for railroad/marine; AIS J-pole
+      dimensions are in `docs/antennas.md` §5 (very close to the other two,
+      consider building as a batch). This is the only remaining blocker for
+      live ship tracking — the software side is done.
+- [ ] **HAM**: buy the NooElec SMArt XTR HF Bundle (Amazon), burn
+      `RTLSDR_HAM` onto the XTR once it arrives (`./scripts/set_serials.sh ham`).
 - [ ] Build/mount ADS-B antenna (spec: `docs/antennas.md` §4)
 - [ ] Spec + build HAM antenna once band(s) of interest are chosen
-      (`docs/antennas.md` §5 — currently a placeholder)
-- [ ] Confirm railroad + marine antennas are actually built/mounted to spec
-      (`docs/antennas.md` §1/§2) — `CLAUDE.md` lists both dongles as
-      "Connected" already, but worth verifying the antenna side matches
-- [ ] 7" display: mount, connect, confirm a desktop/X session is available
-      on the Pi for a kiosk browser (needed before the map autostart works)
+      (`docs/antennas.md` §6 — may not be needed at all if the XTR bundle's
+      included antennas cover it)
 - [ ] Second monitor for the audio-status dashboard — physical mount/connect
       once that dashboard exists (see "Declared but not built")
 - [ ] PPM calibration for all dongles via `kalibrate-rtl`
       (`docs/hardware.md` setup step 4) — not yet confirmed done
 
-## Software — ADS-B
+## Software — ADS-B / AIS
 
-- [ ] One-time feeder account setup (these are what `start_scanner.sh` now
-      assumes are already configured):
-      - `dump1090-fa`: set the `RTLSDR_ADSB` device serial in
-        `/etc/default/dump1090-fa`
+- [x] Live map built and kiosk-wired (see "Resolved this session").
+- [ ] One-time feeder account setup (piaware/fr24feed/adsbx-feed need
+      accounts before they do anything — see `start_scanner.sh` comments):
       - piaware: `sudo piaware-config -force -latitude <lat> -longitude <lon>`,
         then claim at flightaware.com/adsb/piaware/claim
       - fr24feed: `sudo dpkg-reconfigure fr24feed`, enter your sharing key
       - ADS-B Exchange: one-time `docker run` per adsbexchange.com/how-to-feed
         to create the `adsbx-feed` container (script only `docker start`s an
         existing one)
-- [ ] Fill in real `receiver_lat` / `receiver_lon` / `receiver_alt_m` in
-      `config/channels/adsb.yaml` — currently a Tacoma-approximate
-      placeholder; accurate mlat needs the real antenna position
-- [ ] Kiosk browser autostart for the 7" display — commented out in
-      `install.sh`, needs your display's actual setup to fill in
+- [ ] `receiver_alt_m` in `config/channels/adsb.yaml` is still a placeholder
+      (50m) — update with actual antenna height MSL once mounted; lat/lon
+      are already exact.
+- [ ] Test AIS against real RF once the dongle/antenna are wired up —
+      software side (decoder, tracker, map rendering) is built and unit
+      tested against sample data, but unverified against actual Commencement
+      Bay traffic.
 
 ## Software — railroad/marine/HAM audio + playback
 

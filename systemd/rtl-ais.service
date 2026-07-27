@@ -1,0 +1,14 @@
+[Unit]
+Description=rtl_ais AIS receiver (SDRScanner)
+After=local-fs.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=czalinski
+ExecStart=/home/czalinski/SDRScanner/scripts/run_rtl_ais.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -4,11 +4,12 @@
 
 | Device | Target Frequencies | Antenna Type |
 |--------|--------------------|--------------|
-| RTL-SDR.COM V3 #1 | 160–162 MHz (Railroad) | 5/8λ vertical or dipole |
-| RTL-SDR.COM V3 #2 | 156–162 MHz (Marine VHF) | 5/8λ vertical |
+| RTL-SDR.COM V3 #1 | 160–162 MHz (Railroad) | J-pole (chosen, equipment ordered) — see §1 |
+| RTL-SDR.COM V3 #2 | 156–162 MHz (Marine VHF) | J-pole (chosen, equipment ordered) — see §2 |
 | Uniden SDS200 (standalone, not RTL-SDR) | 763–775 MHz (P25 fire/police) | DPD 769–775 MHz omni collinear |
 | NooElec NESDR SMArt v5 | 1090 MHz (ADS-B) | Collinear or spider |
-| NooElec NESDR SMArTee v5 | HF (HAM, band TBD) | TBD — pending hardware decision (§5) |
+| NooElec NESDR SMArTee v5 | 161.975/162.025 MHz (AIS) | Dedicated J-pole — see §5 |
+| NooElec NESDR SMArt XTR (not yet purchased) | HF (HAM, band TBD) | Bundle includes antennas + balun (§6) |
 
 ---
 
@@ -17,16 +18,33 @@
 **Target:** 161 MHz center  
 **λ = c/f = 299,792,458 / 161,000,000 = 1.862 m**
 
-### Quarter-wave ground plane (simplest)
+### J-pole (chosen — equipment ordered)
+A half-wave radiator fed by a shorted quarter-wave matching stub, mounted
+side by side. No radials needed (self-contained, unlike the ground-plane
+options below), omnidirectional, ~unity to 2 dBi gain (similar to a dipole).
+Dimensions from the standard `468/f` (radiator) and `234/f` (stub) foot
+formulas (f in MHz) — these are a *starting point*; final SWR depends on
+conductor diameter/spacing, so plan to trim:
+
+| Element | Formula | At 161 MHz |
+|---------|---------|------------|
+| Radiator (half-wave) | 468/f ft | 2.91 ft = **34.9 in / 88.6 cm** |
+| Matching stub (quarter-wave, shorted) | 234/f ft | 1.45 ft = **17.4 in / 44.3 cm** |
+
+**Build notes:**
+- Stub and radiator run parallel, ~1–2 in apart (spacing affects match).
+- Short the bottom of the stub with a conductive strap.
+- Feedpoint: tap the coax center conductor onto the stub, typically
+  starting ~2 in up from the short, sliding up/down while checking SWR —
+  don't just solder at a fixed point and assume it's right first try.
+- Coax shield connects to the stub near the short; radiator connects to
+  the top of the stub.
+
+### Alternative: quarter-wave ground plane (simpler, if J-pole build stalls)
 - Radiator: λ/4 = **46.5 cm**
 - 4× radials: λ/4 = 46.5 cm each, angled down 45°
 - Connector: SMA male to coax, then SMA female chassis mount
 - Feed impedance: ~35 Ω; add a 1:1.5 transformer or accept slight mismatch
-
-### 5/8λ vertical (better gain, ~3 dBi)
-- Radiator: 5λ/8 = **116.4 cm**
-- Matching coil at base (shorten with ~10 cm coil, ~6 turns, adjust for 50 Ω)
-- 4× λ/4 radials
 
 ### Notes
 - Railroad VHF is horizontal polarization in some areas but mostly vertical.
@@ -41,9 +59,19 @@ Band is narrow enough that a 159 MHz center antenna covers everything.
 
 **λ at 159 MHz = 1.886 m**
 
-### 5/8λ marine vertical
-- Same construction as railroad antenna above but tuned to 159 MHz
-- Radiator: 117.9 cm
+### J-pole (chosen — equipment ordered)
+Same design as §1, tuned to 159 MHz:
+
+| Element | Formula | At 159 MHz |
+|---------|---------|------------|
+| Radiator (half-wave) | 468/f ft | 2.94 ft = **35.3 in / 89.7 cm** |
+| Matching stub (quarter-wave, shorted) | 234/f ft | 1.47 ft = **17.7 in / 44.9 cm** |
+
+Same build notes as §1 — trim for lowest SWR rather than trusting the
+formula dimensions exactly.
+
+### Alternative: 5/8λ vertical (if J-pole build stalls)
+- Radiator: 5λ/8 = **117.9 cm**
 - Mount outdoors with clear horizon view
 
 ---
@@ -151,16 +179,39 @@ which is worth it — under ~15 ft, even RG-8X costs under 2 dB.
 
 ---
 
-## 5. HAM Antenna (HF — band TBD)
+## 5. AIS Antenna (161.975/162.025 MHz — NooElec SMArTee v5)
 
-**Hardware decided** (see `docs/hardware.md`): NooElec SMArTee v5 + Ham It
-Up Plus v2 upconverter, powered via the SMArTee's bias tee.
+**Target:** AIS channels 87B/88B, 161.975/162.025 MHz — center 162.0 MHz.
+
+**Chosen: a dedicated third J-pole**, same design as §1/§2, rather than a
+splitter off the marine antenna — avoids the few dB of splitter loss, at
+the cost of building one more antenna.
+
+**λ at 162 MHz = 1.851 m**
+
+| Element | Formula | At 162 MHz |
+|---------|---------|------------|
+| Radiator (half-wave) | 468/f ft | 2.89 ft = **34.7 in / 88.1 cm** |
+| Matching stub (quarter-wave, shorted) | 234/f ft | 1.44 ft = **17.3 in / 44.0 cm** |
+
+Same build notes as §1 — trim for lowest SWR. Since all three J-poles
+(railroad 161 MHz, marine 159 MHz, AIS 162 MHz) are within ~2% of each
+other in dimensions, consider building them as a batch.
+
+---
+
+## 6. HAM Antenna (HF — band TBD)
+
+**Hardware decided** (see `docs/hardware.md`): NooElec SMArt XTR HF Bundle
+— comes with 3 antennas + a balun, so this section may not need a custom
+build at all once the bundle arrives.
 
 **Target band(s):** still TBD. Antenna choice depends on which HAM bands
 matter most (e.g. 40m, 20m, 17m) — HF wire antennas (dipole, longwire,
 magnetic loop) generally cover a narrow range well; multi-band coverage
 typically needs either a trap dipole, an antenna tuner, or accepting a
-compromise antenna. Fill in once bands of interest are chosen.
+compromise antenna. Fill in once bands of interest are chosen and the
+bundle's included antennas are evaluated against them.
 
 ---
 
@@ -173,8 +224,8 @@ compromise antenna. Fill in once bands of interest are chosen.
 | 5–15 m | LMR-400 |
 | > 15 m | Consider a low-noise preamp at the antenna |
 
-RTL-SDR.COM V3 dongles (railroad, marine) and the NooElec v5 dongles
-(ADS-B, HAM) use SMA female connectors.
+RTL-SDR.COM V3 dongles (railroad, marine) and the NooElec v5/XTR dongles
+(ADS-B, AIS, HAM) use SMA female connectors.
 Pigtail: **SMA male → F-type** or directly to RG-316 with SMA male crimp.
 
 The SDS200 (P25) is BNC female — see §3 for its N-to-BNC feedline, separate

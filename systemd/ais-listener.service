@@ -1,0 +1,14 @@
+[Unit]
+Description=AIS NMEA listener/decoder (SDRScanner)
+After=rtl-ais.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=czalinski
+ExecStart=/home/czalinski/SDRScanner/scripts/run_ais_listener.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

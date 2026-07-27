@@ -45,26 +45,40 @@ uses the same DPD 769–775 MHz omni antenna spec'd for this project
 since it's a single receiver.
 
 Of the two NooElec RTL-SDR v5 dongles originally planned for P25, one is
-reused below for ADS-B; the other (a SMArTee v5, bias-tee enabled) is
-reused for HAM/HF — see below.
+reused below for ADS-B; the other (a SMArTee v5, bias-tee enabled) is now
+reused for AIS — see below. HAM gets its own dedicated dongle instead (a
+NooElec SMArt XTR HF Bundle), since AIS needs the SMArTee.
 
-### NooElec RTL-SDR v5 — HAM/HF
+### NooElec RTL-SDR v5 (SMArTee variant) — AIS
 
 | Spec | Value |
 |------|-------|
 | Tuner | Rafael Micro R820T2 |
-| Frequency range | 500 kHz – 1.75 GHz (direct HF reception is poor without an upconverter) |
+| Frequency range | 500 kHz – 1.75 GHz |
 | Connector | SMA female |
-| Bias-T | Yes (SMArTee variant) — powers the upconverter below directly |
+| Bias-T | Yes — not needed for AIS, just a side effect of reusing this dongle |
 
-**Assigned role:** `RTLSDR_HAM` (not yet burned) — HAM HF (SSB/CW)
-monitoring. **Decided:** keep this SMArTee v5 and add a **Ham It Up Plus
-v2** upconverter, powered via the SMArTee's built-in bias tee — not the
-NooElec SMArt XTR HF Bundle, since that would just add a redundant second
-RTL-SDR. Upconverter still needs to be purchased and wired in.
+**Assigned role:** `RTL_AIS` — AIS vessel tracking,
+Commencement Bay. Needs its own dedicated dongle: `rtl_ais` requires
+exclusive device access, and AIS's frequencies (161.975/162.025 MHz) fall
+outside the marine voice dongle's 155.8–157.8 MHz window. Antenna: a
+dedicated third J-pole (see `docs/antennas.md` §5) rather than a splitter
+off the marine antenna — avoids splitter loss, not yet built. Decoded via
+`rtl_ais` + `src/display/ais_listener.py` (uses the `pyais` library),
+rendered as dark blue markers on the same live map as ADS-B aircraft
+(bright red) — see `src/display/adsb_map.py`.
 
-Needs an SSB/CW demodulator — the NFM demod chain used for railroad/marine
-doesn't apply to HF voice/CW.
+### NooElec NESDR SMArt XTR HF Bundle — HAM/HF
+
+Not yet purchased. Includes: SMArt XTR RTL-SDR, Ham It Up Plus v2
+upconverter, 3 antennas, balun, adapters — a purpose-built kit rather than
+assembling pieces separately (the original plan of adding just an
+upconverter to the existing SMArTee v5 no longer works now that the
+SMArTee is needed for AIS).
+
+**Assigned role:** `RTLSDR_HAM` (not yet burned, hardware not yet
+purchased) — HAM HF (SSB/CW) monitoring. Needs an SSB/CW demodulator — the
+NFM demod chain used for railroad/marine doesn't apply to HF voice/CW.
 
 ## USB Topology
 
@@ -74,10 +88,11 @@ OrangePi USB port
     ├── RTL-SDR.COM V3 #1  (RTLSDR_RR)
     ├── RTL-SDR.COM V3 #2  (RTLSDR_MRN)
     ├── NooElec SMArt v5   (RTLSDR_ADSB)
-    └── NooElec SMArTee v5 (RTLSDR_HAM) — serial not yet burned
+    ├── NooElec SMArTee v5 (RTL_AIS)
+    └── NooElec SMArt XTR  (RTLSDR_HAM) — not yet purchased
 ```
 
-**Important:** Must use an externally-powered hub — 4 dongles running
+**Important:** Must use an externally-powered hub — several dongles running
 concurrently draws more than a bus-powered hub can supply from a single Pi
 USB port (~300 mA per RTL-SDR). Confirmed by direct testing: a bus-powered
 4-port hub caused constant USB disconnect/reconnect churn with only 3

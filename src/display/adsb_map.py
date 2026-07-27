@@ -1,9 +1,10 @@
-"""Full-screen ADS-B live map — monitor 1 of the planned two-monitor setup.
+"""Full-screen ADS-B + AIS live map — monitor 1 of the planned two-monitor setup.
 
-Reads dump1090's periodic aircraft.json (see scripts/start_scanner.sh, which
-runs dump1090 with --write-json) and renders tracked aircraft as
-heading-oriented markers with callsign/altitude/speed labels over a cached
-OpenStreetMap background (src/display/tile_cache.py).
+Reads dump1090's periodic aircraft.json (see scripts/run_dump1090.sh) and the
+AIS listener's ships.json (see src/display/ais_listener.py, fed by
+scripts/run_rtl_ais.sh), rendering both as heading-oriented markers over a
+cached OpenStreetMap background (src/display/tile_cache.py). Aircraft and
+ships are color-coded separately since they otherwise look identical.
 """
 import json
 import logging
@@ -25,6 +26,7 @@ logging.basicConfig(
 
 REPO_DIR = Path(__file__).resolve().parents[2]
 AIRCRAFT_JSON = REPO_DIR / "run" / "adsb-json" / "aircraft.json"
+SHIPS_JSON = REPO_DIR / "run" / "adsb-json" / "ships.json"
 
 # Roughly what's visually spottable by eye from the ground on a clear day —
 # not the SDR's actual RF reception range (which is far larger, 150nm+).
@@ -43,8 +45,9 @@ FULLSCREEN_REASSERT_S = 10.0
 OFFSCREEN_MARGIN_PX = 50
 
 BG_FALLBACK_COLOR = (10, 10, 15)
-AIRCRAFT_COLOR = (139, 0, 0)      # dark red — contrasts against the light OSM basemap
-LABEL_COLOR = (0, 0, 0)           # black
+AIRCRAFT_COLOR = (255, 0, 0)      # bright red
+SHIP_COLOR = (0, 0, 139)          # dark blue
+LABEL_COLOR = (0, 0, 0)           # black — same for both, only the glyph color distinguishes them
 ATTRIBUTION = "© OpenStreetMap contributors"
 
 
@@ -58,6 +61,16 @@ def load_aircraft() -> list[dict]:
         return []
 
 
+def load_ships() -> list[dict]:
+    try:
+        with open(SHIPS_JSON) as f:
+            data = json.load(f)
+        return data.get("ships", [])
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        log.debug("Could not read %s: %s", SHIPS_JSON, e)
+        return []
+
+
 def _format_altitude(alt) -> str:
     if alt == "ground":
         return "GND"
@@ -66,22 +79,22 @@ def _format_altitude(alt) -> str:
     return "----ft"
 
 
-def _format_speed(gs) -> str:
-    if isinstance(gs, (int, float)):
-        return f"{gs:.0f}kt"
+def _format_speed(speed) -> str:
+    if isinstance(speed, (int, float)):
+        return f"{speed:.0f}kt"
     return "---kt"
 
 
-def _draw_aircraft_glyph(screen: pygame.Surface, x: int, y: int, track_deg: float) -> None:
-    """Small triangle pointing in the aircraft's direction of travel."""
+def _draw_glyph(screen: pygame.Surface, x: int, y: int, heading_deg: float, color) -> None:
+    """Small triangle pointing in the direction of travel."""
     size = 8
-    angle = math.radians(track_deg - 90)  # track 0 = north; screen angle 0 = east
+    angle = math.radians(heading_deg - 90)  # 0 = north; screen angle 0 = east
     tip = (x + size * math.cos(angle), y + size * math.sin(angle))
     p1_angle = angle + math.radians(150)
     p2_angle = angle - math.radians(150)
     p1 = (x + size * math.cos(p1_angle), y + size * math.sin(p1_angle))
     p2 = (x + size * math.cos(p2_angle), y + size * math.sin(p2_angle))
-    pygame.draw.polygon(screen, AIRCRAFT_COLOR, [tip, p1, p2])
+    pygame.draw.polygon(screen, color, [tip, p1, p2])
 
 
 def draw_aircraft(screen: pygame.Surface, view: MapView, font: pygame.font.Font,
@@ -95,10 +108,29 @@ def draw_aircraft(screen: pygame.Surface, view: MapView, font: pygame.font.Font,
     if not (-m <= x <= view.screen_w + m and -m <= y <= view.screen_h + m):
         return
 
-    _draw_aircraft_glyph(screen, x, y, ac.get("track", 0.0))
+    _draw_glyph(screen, x, y, ac.get("track", 0.0), AIRCRAFT_COLOR)
 
     flight = (ac.get("flight") or ac.get("hex", "?????")).strip()
     label = f"{flight}  {_format_altitude(ac.get('alt_baro'))}  {_format_speed(ac.get('gs'))}"
+    text = font.render(label, True, LABEL_COLOR)
+    screen.blit(text, (x + 10, y - 8))
+
+
+def draw_ship(screen: pygame.Surface, view: MapView, font: pygame.font.Font,
+              ship: dict) -> None:
+    lat, lon = ship.get("lat"), ship.get("lon")
+    if lat is None or lon is None:
+        return
+
+    x, y = view.latlon_to_screen(lat, lon)
+    m = OFFSCREEN_MARGIN_PX
+    if not (-m <= x <= view.screen_w + m and -m <= y <= view.screen_h + m):
+        return
+
+    _draw_glyph(screen, x, y, ship.get("course") or 0.0, SHIP_COLOR)
+
+    name = ship.get("shipname") or ship.get("callsign") or str(ship.get("mmsi", "?????"))
+    label = f"{name}  {_format_speed(ship.get('speed'))}"
     text = font.render(label, True, LABEL_COLOR)
     screen.blit(text, (x + 10, y - 8))
 
@@ -139,6 +171,7 @@ def main() -> None:
     last_poll = 0.0
     last_fullscreen_reassert = time.monotonic()
     aircraft: list[dict] = []
+    ships: list[dict] = []
 
     running = True
     while running:
@@ -151,6 +184,7 @@ def main() -> None:
         now = time.monotonic()
         if now - last_poll >= POLL_INTERVAL_S:
             aircraft = load_aircraft()
+            ships = load_ships()
             last_poll = now
 
         if not pygame.display.get_active() and now - last_fullscreen_reassert >= FULLSCREEN_REASSERT_S:
@@ -161,8 +195,10 @@ def main() -> None:
         screen.blit(background, (0, 0))
         for ac in aircraft:
             draw_aircraft(screen, view, font, ac)
+        for ship in ships:
+            draw_ship(screen, view, font, ship)
 
-        count_text = font.render(f"{len(aircraft)} aircraft", True, LABEL_COLOR)
+        count_text = font.render(f"{len(aircraft)} aircraft, {len(ships)} ships", True, LABEL_COLOR)
         screen.blit(count_text, (10, 10))
         attrib_text = attrib_font.render(ATTRIBUTION, True, (40, 40, 40))
         screen.blit(attrib_text, (10, screen_h - 20))
