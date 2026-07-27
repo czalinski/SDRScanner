@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pygame
 
-from src.display.tile_cache import MapView
+from src.display.tile_cache import MapView, zoom_for_radius_miles
 from src.scanner.config_loader import load_channel_config
 
 log = logging.getLogger(__name__)
@@ -26,13 +26,25 @@ logging.basicConfig(
 REPO_DIR = Path(__file__).resolve().parents[2]
 AIRCRAFT_JSON = REPO_DIR / "run" / "adsb-json" / "aircraft.json"
 
-ZOOM = 9
+# Roughly what's visually spottable by eye from the ground on a clear day —
+# not the SDR's actual RF reception range (which is far larger, 150nm+).
+VISIBLE_RADIUS_MILES = 20
 POLL_INTERVAL_S = 1.0
+
+# GNOME Shell only hides its own top bar/dock over a fullscreen window that
+# currently has input focus — the fullscreen *state* alone isn't enough. If
+# something ever steals focus (Activities/Super key, an accidental click) and
+# it doesn't come back, the panels stay visible indefinitely even though the
+# window is still technically fullscreen. For an unattended kiosk, self-heal
+# by re-asserting fullscreen when focus is actually lost — checked cheaply
+# every frame, but only acted on (which recreates the display and causes a
+# visible blink) at most once per this interval, and only when truly needed.
+FULLSCREEN_REASSERT_S = 10.0
 OFFSCREEN_MARGIN_PX = 50
 
 BG_FALLBACK_COLOR = (10, 10, 15)
-AIRCRAFT_COLOR = (255, 200, 0)
-LABEL_COLOR = (0, 255, 120)
+AIRCRAFT_COLOR = (139, 0, 0)      # dark red — contrasts against the light OSM basemap
+LABEL_COLOR = (0, 0, 0)           # black
 ATTRIBUTION = "© OpenStreetMap contributors"
 
 
@@ -99,16 +111,22 @@ def main() -> None:
     pygame.init()
     info = pygame.display.Info()
     screen_w, screen_h = info.current_w, info.current_h
-    screen = pygame.display.set_mode((screen_w, screen_h), pygame.FULLSCREEN)
-    pygame.display.set_caption("SDRScanner — ADS-B Live Map")
-    pygame.mouse.set_visible(False)
+
+    def _claim_fullscreen():
+        s = pygame.display.set_mode((screen_w, screen_h), pygame.FULLSCREEN)
+        pygame.display.set_caption("SDRScanner — ADS-B Live Map")
+        pygame.mouse.set_visible(False)
+        return s
+
+    screen = _claim_fullscreen()
 
     font = pygame.font.SysFont("monospace", 14)
     attrib_font = pygame.font.SysFont("sans", 12)
 
-    log.info("Building map background (zoom=%d, center=%.4f,%.4f)...",
-              ZOOM, receiver_lat, receiver_lon)
-    view = MapView(receiver_lat, receiver_lon, ZOOM, screen_w, screen_h)
+    zoom = zoom_for_radius_miles(receiver_lat, VISIBLE_RADIUS_MILES, screen_h)
+    log.info("Building map background (zoom=%d, ~%dmi radius, center=%.6f,%.6f)...",
+              zoom, VISIBLE_RADIUS_MILES, receiver_lat, receiver_lon)
+    view = MapView(receiver_lat, receiver_lon, zoom, screen_w, screen_h)
     try:
         background = view.build_background()
     except Exception:
@@ -119,6 +137,7 @@ def main() -> None:
 
     clock = pygame.time.Clock()
     last_poll = 0.0
+    last_fullscreen_reassert = time.monotonic()
     aircraft: list[dict] = []
 
     running = True
@@ -134,13 +153,18 @@ def main() -> None:
             aircraft = load_aircraft()
             last_poll = now
 
+        if not pygame.display.get_active() and now - last_fullscreen_reassert >= FULLSCREEN_REASSERT_S:
+            last_fullscreen_reassert = now
+            log.warning("Lost window focus/fullscreen — reasserting.")
+            screen = _claim_fullscreen()
+
         screen.blit(background, (0, 0))
         for ac in aircraft:
             draw_aircraft(screen, view, font, ac)
 
         count_text = font.render(f"{len(aircraft)} aircraft", True, LABEL_COLOR)
         screen.blit(count_text, (10, 10))
-        attrib_text = attrib_font.render(ATTRIBUTION, True, (180, 180, 180))
+        attrib_text = attrib_font.render(ATTRIBUTION, True, (40, 40, 40))
         screen.blit(attrib_text, (10, screen_h - 20))
 
         pygame.display.flip()

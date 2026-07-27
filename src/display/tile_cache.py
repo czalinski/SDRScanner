@@ -37,6 +37,23 @@ def _lat_lon_to_tile_xy(lat: float, lon: float, zoom: int) -> tuple[float, float
     return x, y
 
 
+_MILES_PER_DEG_LAT = 69.0
+
+
+def zoom_for_radius_miles(center_lat_deg: float, radius_miles: float, screen_h_px: int) -> int:
+    """Smallest integer zoom whose vertical extent (the tighter screen dimension,
+    since screens are wider than tall) covers at least `radius_miles` above and
+    below center. Horizontal extent ends up larger, which is fine — extra margin
+    on the sides, never less than the requested radius in any direction."""
+    target_height_deg = (2.0 * radius_miles) / _MILES_PER_DEG_LAT
+    sec_lat = 1.0 / math.cos(math.radians(center_lat_deg))
+    # pixels_per_degree_lat = TILE_SIZE * n * sec_lat / 360  (Mercator y-derivative)
+    # screen_h_px == target_height_deg * pixels_per_degree_lat  -->  solve for n
+    n = screen_h_px * 360.0 / (target_height_deg * TILE_SIZE * sec_lat)
+    zoom = round(math.log2(n))
+    return max(2, min(19, zoom))
+
+
 class MapView:
     """Projects lat/lon to screen pixels and builds a cached OSM tile background."""
 
