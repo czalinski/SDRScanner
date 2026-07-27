@@ -91,10 +91,3 @@ channels:
     freq_mhz: 156.650
     priority: false
     notes: "Navigation safety, 1W only"
-
-# AIS is handled separately by rtl-ais on same device
-ais:
-  enabled: true
-  ch_87b_mhz: 161.975
-  ch_88b_mhz: 162.025
-  notes: "rtl-ais decodes both AIS channels simultaneously within one 2 MHz capture"

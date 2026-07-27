@@ -1,0 +1,15 @@
+[Unit]
+Description=SDRScanner ADS-B live map (full-screen kiosk display)
+After=graphical-session.target
+PartOf=graphical-session.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Environment=DISPLAY=:0
+ExecStart=/home/czalinski/SDRScanner/scripts/run_adsb_map.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target

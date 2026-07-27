@@ -24,32 +24,19 @@ devices:
     channel_config: marine
     ppm: 0
     gain: null
-    notes: >
-      AIS moved to a dedicated device (see `ais` below) — RTL-SDR dongles
-      are exclusive-access, so rtl_ais and this NFM voice scanner can't
-      share one dongle/process.
-
-  - id: ais
-    serial: "RTLSDR_AIS"       # NooElec v5 #1 — dedicated AIS receiver
-    model: "NooElec RTL-SDR v5"
-    role: "AIS vessel tracking (dedicated — see marine notes above)"
-    antenna: "157 MHz vertical dipole — shared with marine via 2-way splitter (156-162 MHz, same band, no separate antenna needed)"
-    sample_rate: 2048000
-    center_mhz: 162.000          # AIS ch 87B/88B: 161.975 / 162.025 MHz
-    channel_config: null         # rtl_ais handles AIS directly; no scan loop needed
-    ppm: 0
-    gain: null
 
   # P25 trunking (Pierce County fire/police) moved off this stack entirely —
   # handled by a standalone Uniden SDS200 scanner, not RTL-SDR/trunk-recorder.
   # SDS200 uses the same DPD 769-775 MHz omni antenna spec'd for this
   # project, fed directly (no LNA/multicoupler — single receiver, no
-  # splitting needed). One of the two originally-planned NooElec v5 dongles
-  # is reused above for dedicated AIS; the other remains a spare.
+  # splitting needed). Of the two originally-planned NooElec v5 dongles, one
+  # is reused below for ADS-B; the other (NooElec SMArTee v5, bias-tee
+  # enabled) is reused for HAM/HF — see `ham` below, config pending hardware
+  # decision (upconverter vs. full HF bundle).
 
   - id: adsb
-    serial: "RTLSDR_ADSB"      # Cheap RTL-SDR (to be purchased ~$25) — separate from NooElec v5s
-    model: "RTL-SDR V3 or equivalent"
+    serial: "RTLSDR_ADSB"      # NooElec v5 #2 — repurposed from spare P25 dongle
+    model: "NooElec NESDR SMArt v5"
     role: "ADS-B 1090 MHz aircraft tracking"
     antenna: "1090 MHz spider ground plane"
     sample_rate: 2000000
@@ -57,3 +44,21 @@ devices:
     channel_config: null        # dump1090 handles ADS-B; no scan loop needed
     ppm: 0
     gain: null
+
+  - id: ham
+    serial: null                # TODO: not yet burned — see set_serials.sh ham role
+    model: "NooElec NESDR SMArTee v5 (bias-tee enabled)"
+    role: "HAM HF (SSB/CW) monitoring"
+    antenna: null                # TODO: depends on band(s) chosen
+    sample_rate: null            # TODO
+    center_mhz: null             # TODO: HF band segment(s) to cover
+    channel_config: null         # TODO: HF scanning needs voice-activity detection,
+                                  # not the FM power-threshold FFT used for railroad/marine
+    ppm: 0
+    gain: null
+    notes: >
+      Decided: keep this SMArTee v5, add a Ham It Up Plus v2 upconverter
+      powered via its built-in bias tee (not the XTR bundle — no need for
+      a second RTL-SDR). Upconverter not yet purchased/wired in. Needs an
+      SSB/CW demodulator — the existing NFM demod chain (railroad/marine)
+      doesn't apply.

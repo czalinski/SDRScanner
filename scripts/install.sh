@@ -96,22 +96,22 @@ if ! command -v adsbx-feed &>/dev/null; then
     fi
 fi
 
-# ── Kiosk display (7" Pi display — local dump1090-fa SkyAware map) ───────────
-# Requires a desktop/X session on the display; only relevant if a GUI is
-# configured on this Orange Pi. Uncomment once the display + X session are set up:
-# sudo apt-get install -y --no-install-recommends chromium unclutter
-# Autostart: chromium --kiosk --noerrdialogs --disable-infobars http://localhost:8080
+# ── ADS-B kiosk display (HDMI monitor — src/display/adsb_map.py) ─────────────
+# dump1090-adsb.service (system-wide, no login needed) feeds JSON to
+# adsb-map.service (per-user, starts with the graphical session — needs GDM
+# auto-login enabled, which this Pi already has). See systemd/*.service.
+log "Installing kiosk systemd services..."
+sudo cp "$REPO_DIR/systemd/dump1090-adsb.service" /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable dump1090-adsb.service
 
-# ── rtl-ais (AIS marine vessel decoder) ───────────────────────────────────────
-if ! command -v rtl_ais &>/dev/null; then
-    log "Building rtl-ais from source..."
-    TMP=$(mktemp -d)
-    git clone --depth=1 https://github.com/dgiardini/rtl-ais.git "$TMP/rtl-ais"
-    make -C "$TMP/rtl-ais" -j"$(nproc)"
-    sudo install -m755 "$TMP/rtl-ais/rtl_ais" /usr/local/bin/
-    rm -rf "$TMP"
-    log "rtl-ais installed."
-fi
+mkdir -p "$HOME/.config/systemd/user"
+cp "$REPO_DIR/systemd/adsb-map.service" "$HOME/.config/systemd/user/"
+systemctl --user daemon-reload
+systemctl --user enable adsb-map.service
+log "Kiosk services installed. Start now with:"
+log "  sudo systemctl start dump1090-adsb"
+log "  systemctl --user start adsb-map"
 
 # NOTE: P25 (fire/police) runs on a standalone Uniden SDS200, not this stack.
 # No OP25/GNU Radio dependency here — see docs/hardware.md.

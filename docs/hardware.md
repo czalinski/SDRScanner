@@ -11,7 +11,7 @@
 | OS | Linux 6.1.99-vendor-rk35xx (aarch64) |
 | USB | USB 3.0 ×2, USB 2.0 ×2 |
 | Network | 2.5 GbE |
-| IP | 192.168.68.230 |
+| IP | 192.168.68.98 |
 
 ## SDR Dongles
 
@@ -31,9 +31,7 @@
 
 **Assigned roles:**
 - #1 (`RTLSDR_RR`): BNSF Railroad scanner, 160–162 MHz
-- #2 (`RTLSDR_MRN`): Marine VHF voice, 156–162 MHz (AIS moved to a
-  dedicated dongle — see below; RTL-SDR dongles are exclusive-access and
-  can't run rtl_ais and the NFM voice scanner on the same one)
+- #2 (`RTLSDR_MRN`): Marine VHF voice, 156–162 MHz
 
 ### P25 Trunking — moved off this stack
 
@@ -47,35 +45,43 @@ uses the same DPD 769–775 MHz omni antenna spec'd for this project
 since it's a single receiver.
 
 Of the two NooElec RTL-SDR v5 dongles originally planned for P25, one is
-reused below as a dedicated AIS receiver; the other is a spare.
+reused below for ADS-B; the other (a SMArTee v5, bias-tee enabled) is
+reused for HAM/HF — see below.
 
-### NooElec RTL-SDR v5 — dedicated AIS
+### NooElec RTL-SDR v5 — HAM/HF
 
 | Spec | Value |
 |------|-------|
-| Tuner | Rafael Micro R828D |
-| Frequency range | 500 kHz – 1.75 GHz |
+| Tuner | Rafael Micro R820T2 |
+| Frequency range | 500 kHz – 1.75 GHz (direct HF reception is poor without an upconverter) |
 | Connector | SMA female |
-| Noise figure | ~3 dB typical |
+| Bias-T | Yes (SMArTee variant) — powers the upconverter below directly |
 
-**Assigned role:** `RTLSDR_AIS` — AIS vessel tracking, split off the marine
-antenna via a 2-way splitter (156–162 MHz is the same band as marine voice,
-so no separate antenna build is needed).
+**Assigned role:** `RTLSDR_HAM` (not yet burned) — HAM HF (SSB/CW)
+monitoring. **Decided:** keep this SMArTee v5 and add a **Ham It Up Plus
+v2** upconverter, powered via the SMArTee's built-in bias tee — not the
+NooElec SMArt XTR HF Bundle, since that would just add a redundant second
+RTL-SDR. Upconverter still needs to be purchased and wired in.
+
+Needs an SSB/CW demodulator — the NFM demod chain used for railroad/marine
+doesn't apply to HF voice/CW.
 
 ## USB Topology
 
 ```
-OrangePi USB 3.0 port
-└── USB Hub (Bus 001 / 002)
+OrangePi USB port
+└── Externally-powered USB hub
     ├── RTL-SDR.COM V3 #1  (RTLSDR_RR)
     ├── RTL-SDR.COM V3 #2  (RTLSDR_MRN)
-    ├── NooElec v5         (RTLSDR_AIS)
-    └── [slot] RTL-SDR (cheap) (RTLSDR_ADSB) — pending purchase
+    ├── NooElec SMArt v5   (RTLSDR_ADSB)
+    └── NooElec SMArTee v5 (RTLSDR_HAM) — serial not yet burned
 ```
 
-**Important:** Use a powered USB hub — 4 dongles running concurrently draws
-more than most Pi USB ports can supply on their own. Each RTL-SDR draws
-~300 mA.
+**Important:** Must use an externally-powered hub — 4 dongles running
+concurrently draws more than a bus-powered hub can supply from a single Pi
+USB port (~300 mA per RTL-SDR). Confirmed by direct testing: a bus-powered
+4-port hub caused constant USB disconnect/reconnect churn with only 3
+dongles attached; switching to an externally-powered hub resolved it.
 
 ## Initial Setup Steps
 

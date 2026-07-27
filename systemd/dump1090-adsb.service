@@ -1,0 +1,14 @@
+[Unit]
+Description=dump1090 ADS-B receiver (SDRScanner)
+After=local-fs.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=czalinski
+ExecStart=/home/czalinski/SDRScanner/scripts/run_dump1090.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

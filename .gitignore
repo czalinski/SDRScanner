@@ -8,3 +8,5 @@ logs/
 /tmp/
 .DS_Store
 *.stl
+run/
+recordings/

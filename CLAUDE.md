@@ -8,14 +8,18 @@ Multi-channel Software Defined Radio scanner running on an Orange Pi Max V1.1 (R
 |--------|------|--------|
 | RTL-SDR.COM V3 #1 (R820T2) | BNSF Railroad scanner | Connected |
 | RTL-SDR.COM V3 #2 (R820T2) | Marine VHF voice | Connected |
-| RTL-SDR (cheap, ~$25) | ADS-B (1090 MHz), fed to FlightAware/FR24/ADS-B Exchange | Pending purchase |
+| NooElec NESDR SMArt v5 (R820T2) | ADS-B (1090 MHz), fed to FlightAware/FR24/ADS-B Exchange | Connected |
+| NooElec NESDR SMArTee v5 (bias-tee) | HAM HF (SSB/CW) | Connected — serial/antenna/demod pending |
 | Uniden SDS200 (standalone scanner) | P25 trunking — Pierce County fire/police | Planned purchase |
 | 7" Pi display | Local kiosk map (dump1090-fa SkyAware) | Purchased |
+
+Long-term: a second monitor is also planned, showing live audio-output
+status across Marine/Railroad/HAM (not built yet — see `TODO.md`).
 
 P25 (fire/police) runs on a standalone Uniden SDS200, not the RTL-SDR/Orange
 Pi stack — see `docs/hardware.md` and `docs/antennas.md` §3.
 
-Target host: `czalinski@192.168.68.230`
+Target host: `czalinski@192.168.68.98`
 
 ## Project Layout
 
@@ -33,7 +37,6 @@ tests/          Unit and integration tests
 - `rtl-sdr` — userspace driver and CLI tools
 - `SoapySDR` + `SoapyRTLSDR` — hardware abstraction (multi-device)
 - `dump1090-fa` — ADS-B decoder (1090 MHz), feeds piaware/fr24feed/adsbx-feed
-- `rtl-ais` — AIS marine vessel decoder
 - Python packages: see `requirements.txt`
 
 P25 no longer runs on this stack (standalone Uniden SDS200), so `op25` /

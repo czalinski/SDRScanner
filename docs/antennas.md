@@ -5,9 +5,10 @@
 | Device | Target Frequencies | Antenna Type |
 |--------|--------------------|--------------|
 | RTL-SDR.COM V3 #1 | 160–162 MHz (Railroad) | 5/8λ vertical or dipole |
-| RTL-SDR.COM V3 #2 | 156–162 MHz (Marine VHF + AIS) | 5/8λ vertical |
+| RTL-SDR.COM V3 #2 | 156–162 MHz (Marine VHF) | 5/8λ vertical |
 | Uniden SDS200 (standalone, not RTL-SDR) | 763–775 MHz (P25 fire/police) | DPD 769–775 MHz omni collinear |
-| RTL-SDR (cheap, ~$25, optional) | 1090 MHz (ADS-B) | Collinear or spider |
+| NooElec NESDR SMArt v5 | 1090 MHz (ADS-B) | Collinear or spider |
+| NooElec NESDR SMArTee v5 | HF (HAM, band TBD) | TBD — pending hardware decision (§5) |
 
 ---
 
@@ -33,9 +34,9 @@
 
 ---
 
-## 2. Marine VHF + AIS Antenna (156–162 MHz)
+## 2. Marine VHF Antenna (156–162 MHz)
 
-**Target:** 156–162 MHz (VHF Marine band + AIS channels 87B/88B)  
+**Target:** 156–162 MHz (VHF Marine band)  
 Band is narrow enough that a 159 MHz center antenna covers everything.
 
 **λ at 159 MHz = 1.886 m**
@@ -43,11 +44,7 @@ Band is narrow enough that a 159 MHz center antenna covers everything.
 ### 5/8λ marine vertical
 - Same construction as railroad antenna above but tuned to 159 MHz
 - Radiator: 117.9 cm
-- Mount outdoors with clear horizon view (AIS line-of-sight, typically 20–40 nmi)
-
-### AIS note
-- AIS (161.975 + 162.025 MHz) decoded by `rtl-ais` capturing 2 MHz of bandwidth centered ~162 MHz.
-- A single wideband antenna covers both AIS channels and the marine VHF voice band.
+- Mount outdoors with clear horizon view
 
 ---
 
@@ -133,7 +130,7 @@ which is worth it — under ~15 ft, even RG-8X costs under 2 dB.
 
 ---
 
-## 4. ADS-B Antenna (optional, 1090 MHz — separate cheap RTL-SDR, not NooElec v5)
+## 4. ADS-B Antenna (1090 MHz — NooElec NESDR SMArt v5)
 
 **λ at 1090 MHz = 27.5 cm**
 
@@ -154,6 +151,19 @@ which is worth it — under ~15 ft, even RG-8X costs under 2 dB.
 
 ---
 
+## 5. HAM Antenna (HF — band TBD)
+
+**Hardware decided** (see `docs/hardware.md`): NooElec SMArTee v5 + Ham It
+Up Plus v2 upconverter, powered via the SMArTee's bias tee.
+
+**Target band(s):** still TBD. Antenna choice depends on which HAM bands
+matter most (e.g. 40m, 20m, 17m) — HF wire antennas (dipole, longwire,
+magnetic loop) generally cover a narrow range well; multi-band coverage
+typically needs either a trap dipole, an antenna tuner, or accepting a
+compromise antenna. Fill in once bands of interest are chosen.
+
+---
+
 ## Coax & Connectors
 
 | Run length | Recommended coax |
@@ -163,8 +173,8 @@ which is worth it — under ~15 ft, even RG-8X costs under 2 dB.
 | 5–15 m | LMR-400 |
 | > 15 m | Consider a low-noise preamp at the antenna |
 
-RTL-SDR.COM V3 dongles (railroad, marine) and the optional cheap ADS-B
-RTL-SDR use SMA female connectors.
+RTL-SDR.COM V3 dongles (railroad, marine) and the NooElec v5 dongles
+(ADS-B, HAM) use SMA female connectors.
 Pigtail: **SMA male → F-type** or directly to RG-316 with SMA male crimp.
 
 The SDS200 (P25) is BNC female — see §3 for its N-to-BNC feedline, separate

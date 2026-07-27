@@ -1,9 +1,10 @@
 # ADS-B — 1090 MHz Aircraft Tracking
-# Device: adsb (separate cheap RTL-SDR, ~$25 — not a NooElec v5; P25 moved
-# off this stack entirely, see config/devices.yaml)
-# Decoded by: dump1090-fa
-# Display: 7" Pi display runs a kiosk-mode browser against dump1090-fa's
-# built-in SkyAware web map (json_port below) for a live overlay map.
+# Device: adsb (NooElec NESDR SMArt v5, serial RTLSDR_ADSB — see config/devices.yaml)
+# Decoded by: dump1090 (source-built per scripts/install.sh — this box does
+# NOT have the packaged dump1090-fa service, so no built-in HTTP JSON server;
+# --write-json is used instead, see below)
+# Display: src/display/adsb_map.py — full-screen Python/pygame app on the
+# HDMI monitor, reads the JSON file directly (no web server involved).
 
 device: adsb
 
@@ -15,7 +16,8 @@ dump1090:
   net_port_beast: 30005       # Beast binary output (for feeders)
   net_port_sbs: 30003         # SBS-1 BaseStation format
   net_port_raw: 30002         # Raw AVR format
-  json_port: 8080             # dump1090 web map port — also the kiosk display URL
+  write_json_dir: "run/adsb-json"   # relative to repo root — see scripts/start_scanner.sh
+  write_json_every: 1
 
 antenna:
   type: "1090 MHz collinear or cantenna"
