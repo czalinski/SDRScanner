@@ -9,6 +9,7 @@ ships are color-coded separately since they otherwise look identical.
 import json
 import logging
 import math
+import subprocess
 import time
 from pathlib import Path
 
@@ -30,7 +31,7 @@ SHIPS_JSON = REPO_DIR / "run" / "adsb-json" / "ships.json"
 
 # Roughly what's visually spottable by eye from the ground on a clear day —
 # not the SDR's actual RF reception range (which is far larger, 150nm+).
-VISIBLE_RADIUS_MILES = 20
+VISIBLE_RADIUS_MILES = 5
 POLL_INTERVAL_S = 1.0
 
 # GNOME Shell only hides its own top bar/dock over a fullscreen window that
@@ -41,6 +42,16 @@ POLL_INTERVAL_S = 1.0
 # by re-asserting fullscreen when focus is actually lost — checked cheaply
 # every frame, but only acted on (which recreates the display and causes a
 # visible blink) at most once per this interval, and only when truly needed.
+#
+# Recreating the window (pygame.display.set_mode again) is NOT enough on its
+# own to regain focus — confirmed on this hardware: a freshly-mapped
+# fullscreen window did not receive _NET_ACTIVE_WINDOW from Mutter without an
+# actual input event. Mutter's focus-stealing prevention blocks plain
+# window-activation requests (xdotool windowactivate) too. What does work is
+# a synthesized input event (see _force_input_focus) — this happens at
+# startup and every reassert, so the kiosk self-heals even with no mouse ever
+# physically attached; it's a software-level X11 event, not a hardware
+# dependency.
 FULLSCREEN_REASSERT_S = 10.0
 OFFSCREEN_MARGIN_PX = 50
 
@@ -83,6 +94,22 @@ def _format_speed(speed) -> str:
     if isinstance(speed, (int, float)):
         return f"{speed:.0f}kt"
     return "---kt"
+
+
+def _force_input_focus(screen_w: int, screen_h: int) -> None:
+    """Synthesize a click at screen center so Mutter hands the fullscreen
+    window input focus. Non-fatal if xdotool is missing or X isn't reachable
+    (e.g. running headless in a test) — the map still works, just possibly
+    with GNOME's panels visible over it until something else changes focus."""
+    try:
+        subprocess.run(
+            ["xdotool", "mousemove", str(screen_w // 2), str(screen_h // 2),
+             "click", "1"],
+            timeout=2, check=False,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.SubprocessError) as e:
+        log.debug("Could not synthesize focus click: %s", e)
 
 
 def _draw_glyph(screen: pygame.Surface, x: int, y: int, heading_deg: float, color) -> None:
@@ -148,6 +175,7 @@ def main() -> None:
         s = pygame.display.set_mode((screen_w, screen_h), pygame.FULLSCREEN)
         pygame.display.set_caption("SDRScanner — ADS-B Live Map")
         pygame.mouse.set_visible(False)
+        _force_input_focus(screen_w, screen_h)
         return s
 
     screen = _claim_fullscreen()
@@ -187,7 +215,8 @@ def main() -> None:
             ships = load_ships()
             last_poll = now
 
-        if not pygame.display.get_active() and now - last_fullscreen_reassert >= FULLSCREEN_REASSERT_S:
+        lost_focus = not pygame.display.get_active() or not pygame.key.get_focused()
+        if lost_focus and now - last_fullscreen_reassert >= FULLSCREEN_REASSERT_S:
             last_fullscreen_reassert = now
             log.warning("Lost window focus/fullscreen — reasserting.")
             screen = _claim_fullscreen()

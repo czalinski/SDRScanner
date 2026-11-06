@@ -4,11 +4,11 @@
 
 | Device | Target Frequencies | Antenna Type |
 |--------|--------------------|--------------|
-| RTL-SDR.COM V3 #1 | 160–162 MHz (Railroad) | J-pole (chosen, equipment ordered) — see §1 |
-| RTL-SDR.COM V3 #2 | 156–162 MHz (Marine VHF) | J-pole (chosen, equipment ordered) — see §2 |
+| RTL-SDR.COM V3 #1 | 160–162 MHz (Railroad) | J-pole **#1** (built, field-tested — see §7) — design §1 |
+| RTL-SDR.COM V3 #2 | 156–162 MHz (Marine VHF) | J-pole **#3** (built, field-tested — see §7) — design §2 |
 | Uniden SDS200 (standalone, not RTL-SDR) | 763–775 MHz (P25 fire/police) | DPD 769–775 MHz omni collinear |
-| NooElec NESDR SMArt v5 | 1090 MHz (ADS-B) | Collinear or spider |
-| NooElec NESDR SMArTee v5 | 161.975/162.025 MHz (AIS) | Dedicated J-pole — see §5 |
+| NooElec NESDR SMArt v5 | 1090 MHz (ADS-B) | Collinear (built, field-tested — see §7) — design §4 |
+| NooElec NESDR SMArTee v5 | 161.975/162.025 MHz (AIS) | J-pole **#2** (built, field-tested — see §7) — design §5 |
 | NooElec NESDR SMArt XTR (not yet purchased) | HF (HAM, band TBD) | Bundle includes antennas + balun (§6) |
 
 ---
@@ -22,23 +22,42 @@
 A half-wave radiator fed by a shorted quarter-wave matching stub, mounted
 side by side. No radials needed (self-contained, unlike the ground-plane
 options below), omnidirectional, ~unity to 2 dBi gain (similar to a dipole).
-Dimensions from the standard `468/f` (radiator) and `234/f` (stub) foot
-formulas (f in MHz) — these are a *starting point*; final SWR depends on
-conductor diameter/spacing, so plan to trim:
 
-| Element | Formula | At 161 MHz |
-|---------|---------|------------|
-| Radiator (half-wave) | 468/f ft | 2.91 ft = **34.9 in / 88.6 cm** |
-| Matching stub (quarter-wave, shorted) | 234/f ft | 1.45 ft = **17.4 in / 44.3 cm** |
+**Built from 300 Ω twin-lead/ladder line**, same as §5 (AIS) — not bare
+wire/rod. That means the `468/f` / `234/f` foot formulas (f in MHz) can't
+be applied uniformly to both elements, because they behave differently:
+
+- **Matching stub** (both twin-lead conductors run parallel, shorted at
+  bottom) is a real two-conductor transmission line — its length depends
+  on the *twin-lead's own* velocity factor, nominally **~0.82** for 300 Ω
+  window line (verify against your cable's datasheet — commonly
+  0.80–0.91+ depending on product).
+- **Radiator** (the exposed single conductor above where the stub's
+  second conductor is cut) is just a wire in free space — standard
+  bare-wire VF (~0.95, already folded into `468/f`) applies, unaffected
+  by the twin-lead's VF.
+
+| Element | Basis | At 161 MHz |
+|---------|-------|------------|
+| A) Matching stub (shorted, twin-lead VF 0.82) | λ/4 × 0.82 | **38.2 cm / 15.0 in** |
+| B) Radiator, excluding the section run parallel with the stub | (λ/2 × 0.95, `468/f`) − A | **50.4 cm / 19.8 in** |
+| C) Coax tap point (starting estimate) | scaled from A | **~8.2 cm / 3.2 in** from the short |
 
 **Build notes:**
-- Stub and radiator run parallel, ~1–2 in apart (spacing affects match).
-- Short the bottom of the stub with a conductive strap.
-- Feedpoint: tap the coax center conductor onto the stub, typically
-  starting ~2 in up from the short, sliding up/down while checking SWR —
-  don't just solder at a fixed point and assume it's right first try.
-- Coax shield connects to the stub near the short; radiator connects to
-  the top of the stub.
+- Short both conductors at the bottom (0 cm reference). One runs the full
+  A (38.2 cm) as the stub, open at top. The other runs the same A in
+  parallel, then continues alone for B (50.4 cm) to the antenna's true
+  top.
+- Coax center conductor taps the radiator leg, shield taps the stub leg,
+  both at height C above the short.
+- C is only a starting point — trim by sliding while checking SWR, don't
+  solder at a fixed point and assume it's right first try.
+
+**If this antenna was already built using the earlier (uncorrected) 44.3
+cm stub figure**, the stub is roughly 6 cm too long relative to the
+VF-corrected 38.2 cm target — worth re-trimming down for a proper match.
+Receive-only use tolerates a mismatched stub better than transmit would
+(it'll still pull in signal), but it's not tuned to spec as built.
 
 ### Alternative: quarter-wave ground plane (simpler, if J-pole build stalls)
 - Radiator: λ/4 = **46.5 cm**
@@ -60,15 +79,21 @@ Band is narrow enough that a 159 MHz center antenna covers everything.
 **λ at 159 MHz = 1.886 m**
 
 ### J-pole (chosen — equipment ordered)
-Same design as §1, tuned to 159 MHz:
+Same design as §1, tuned to 159 MHz — also built from 300 Ω twin-lead, so
+the same stub-vs-radiator VF split applies (see §1 for why):
 
-| Element | Formula | At 159 MHz |
-|---------|---------|------------|
-| Radiator (half-wave) | 468/f ft | 2.94 ft = **35.3 in / 89.7 cm** |
-| Matching stub (quarter-wave, shorted) | 234/f ft | 1.47 ft = **17.7 in / 44.9 cm** |
+| Element | Basis | At 159 MHz |
+|---------|-------|------------|
+| A) Matching stub (shorted, twin-lead VF 0.82) | λ/4 × 0.82 | **38.6 cm / 15.2 in** |
+| B) Radiator, excluding the section run parallel with the stub | (λ/2 × 0.95, `468/f`) − A | **51.1 cm / 20.1 in** |
+| C) Coax tap point (starting estimate) | scaled from A | **~8.2 cm / 3.2 in** from the short |
 
 Same build notes as §1 — trim for lowest SWR rather than trusting the
 formula dimensions exactly.
+
+**If this antenna was already built using the earlier (uncorrected) 44.9
+cm stub figure**, it's similarly oversized by ~6 cm relative to the
+38.6 cm VF-corrected target — same re-trim recommendation as §1.
 
 ### Alternative: 5/8λ vertical (if J-pole build stalls)
 - Radiator: 5λ/8 = **117.9 cm**
@@ -187,16 +212,46 @@ which is worth it — under ~15 ft, even RG-8X costs under 2 dB.
 splitter off the marine antenna — avoids the few dB of splitter loss, at
 the cost of building one more antenna.
 
+**Built from 300 Ω twin-lead/ladder line** (unlike a bare-wire J-pole,
+where a single velocity factor applies to the whole element). Two
+different velocity factors apply here, because the two sections behave
+differently:
+
+- **Matching stub** — the shorted section where both conductors of the
+  twin-lead run parallel — is electrically a real two-conductor
+  transmission line. Its resonant length depends on the *twin-lead's own*
+  velocity factor, not free-space or bare-wire VF. Nominal VF for 300 Ω
+  window line is **~0.82** (verify against your specific cable's
+  datasheet — window line commonly ranges 0.80–0.91+ depending on
+  dielectric/spacing; true open-wire ladder line can run higher).
+- **Radiator** — the exposed single-conductor section above where the
+  stub's second conductor is cut — is just a wire in free space, not a
+  transmission line. It uses the standard bare-wire VF (~0.95, the same
+  factor already folded into the `468/f` formula), unaffected by the
+  twin-lead's VF.
+
 **λ at 162 MHz = 1.851 m**
 
-| Element | Formula | At 162 MHz |
-|---------|---------|------------|
-| Radiator (half-wave) | 468/f ft | 2.89 ft = **34.7 in / 88.1 cm** |
-| Matching stub (quarter-wave, shorted) | 234/f ft | 1.44 ft = **17.3 in / 44.0 cm** |
+| Element | Basis | At 162 MHz |
+|---------|-------|------------|
+| A) Matching stub (shorted, twin-lead VF 0.82) | λ/4 × 0.82 | **37.9 cm / 14.9 in** |
+| B) Radiator, excluding the section run parallel with the stub | (λ/2 × 0.95, `468/f`) − A | **50.2 cm / 19.8 in** |
+| C) Coax tap point (starting estimate) | scaled from A | **~8.2 cm / 3.2 in** from the short |
 
-Same build notes as §1 — trim for lowest SWR. Since all three J-poles
-(railroad 161 MHz, marine 159 MHz, AIS 162 MHz) are within ~2% of each
-other in dimensions, consider building them as a batch.
+Build: short both conductors at the bottom (0 cm reference). One
+conductor runs the full A (37.9 cm) as the stub, left open at top. The
+other runs the same A in parallel, then continues alone for B (50.2 cm)
+to the antenna's true top. Coax center conductor taps the radiator leg,
+shield taps the stub leg, both at height C above the short. C is only a
+starting point — trim by sliding while checking SWR, same as the other
+J-poles.
+
+**If §1/§2 (railroad, marine) were also built from 300 Ω twin-lead rather
+than bare wire/rod**, the same stub-VF correction applies there and their
+listed stub/radiator dimensions should be recalculated the same way —
+the `468/f` / `234/f` formulas in those sections assume bare wire
+throughout and will give an oversized stub if twin-lead was actually
+used.
 
 ---
 
@@ -212,6 +267,95 @@ magnetic loop) generally cover a narrow range well; multi-band coverage
 typically needs either a trap dipole, an antenna tuner, or accepting a
 compromise antenna. Fill in once bands of interest are chosen and the
 bundle's included antennas are evaluated against them.
+
+---
+
+## 7. Field Test Results (2026-11-06)
+
+All four homemade antennas compared against a baseline: the ~50 cm
+dipole that came with a handheld radio. Purpose was a sanity check on
+construction quality (no SWR meter / VNA available), not a calibrated
+gain measurement.
+
+### Method
+- Two RTL-SDR.COM V3 dongles on one powered USB hub: baseline dipole on
+  `RTLSDR_RR`, antenna under test on `RTLSDR_MRN`. Both antennas
+  vertical, side by side, same location indoors.
+- **Channel match check:** with two identical commercial antennas on both
+  dongles, the receive chains read within ~1 dB of each other (median
+  per-bin difference 0.9 dB) — differences below are the antennas, not
+  the dongles.
+- **VHF (J-poles):** simultaneous `rtl_power` sweeps, 155.5–163 MHz,
+  12.5 kHz bins, gain 40, 60 s. Compared the median level (mostly noise)
+  and individual signals: NOAA 162.550/162.475 (constant carriers, used
+  only as a steady reference), AIS bursts at 161.975/162.025, Ch 16.
+- **1090 MHz (collinear):** two `dump1090` instances in parallel, gain
+  49.6, 2 min, counting aircraft / positions / messages.
+- Script and raw CSVs: `~/antenna_tests/` on the Pi (`cmp.sh <label>
+  [seconds]`, selects dongles by serial).
+- Values are relative dB (uncalibrated), useful only side by side.
+
+### Environment notes
+- Strong local broadband noise indoors. The dipole's background sits
+  ~34 dB above the dongle's own floor (unconnected input ≈ −39), and there
+  is a strong local spur at **157.500 MHz** — likely from the Pi, USB hub
+  or household electronics. Swapping to a new powered hub dropped the
+  dipole's background ~4 dB, so the old hub contributed some of this.
+- **Polarization matters:** with both antennas horizontal, J-pole #1
+  read −5.5 dB vs the dipole on everything; vertical, its real signals
+  matched or beat the dipole. Horizontal tests mostly compared local
+  noise pickup. Test and mount vertical.
+
+### VHF results (J-poles, vertical, vs dipole)
+
+"Above background" = how far a signal stands above that antenna's own
+median level — the figure that matters for hearing weak stations.
+
+| | Dipole | J-pole #1 | J-pole #2 | J-pole #3 |
+|---|---|---|---|---|
+| Background vs dipole | — | −5 dB | −12 dB | −2.5 dB |
+| 157.5 MHz local spur vs dipole | — | −7 dB | −20 dB | −6 dB |
+| NOAA 162.550 above background | ~+10 | +14 | +15 | **+24** |
+| NOAA 162.475 above background | ~+2–9 | +13 | +15 | +14 |
+| AIS strongest burst above background | ~+11 | ~+14 | **~+27** | ~+20 |
+| Real signals, absolute vs dipole | — | −1 to +5 dB | −7 to +4 dB | **+2 to +14 dB** |
+| Ch 16 | no traffic | no traffic | no traffic | caught one (+11 dB vs dipole) |
+
+- **J-pole #3:** best on real signals, ~+10 dB over the dipole, flat across
+  the marine band. Only antenna that caught Ch 16 traffic.
+- **J-pole #2:** lowest noise pickup by far and cleanest AIS bursts.
+  Background is 2–4 dB lower mid-band than at the edges and the 162 MHz
+  signals did best — consistent with resonance slightly high, toward
+  162 MHz. Suits AIS.
+- **J-pole #1:** usable, weakest of the three. Fine for strong signals.
+- None of the three needs a rebuild. Since the three designs differ by
+  only 1–2 cm (§1/§2/§5), the spread is mostly build variation, not
+  design frequency.
+
+### 1090 MHz result (collinear vs dipole, 2 min)
+
+| | Dipole | Collinear |
+|---|---|---|
+| Aircraft seen | 12 | **27** |
+| With position | 6 | **22** |
+| Messages | 3,873 | **15,056** (~4×) |
+| Mean signal | −23.8 dBFS | **−16.8 dBFS** |
+| Peak signal | −16.2 dBFS | **−5.0 dBFS** |
+
+The dipole is badly off-resonance at 1090 MHz so this is a weak baseline,
+but the collinear clearly works — phasing sections are close enough.
+
+(At 156–163 MHz the collinear reads ~19 dB below the dipole with very low
+noise pickup — expected, it's 1/7 of its design frequency. Not a defect.)
+
+### Assignment
+
+| Antenna | Job | Reason |
+|---|---|---|
+| J-pole #3 | Marine VHF voice | Best sensitivity; distant boats are the weakest target |
+| J-pole #2 | AIS | Appears tuned toward 162 MHz; lowest noise; cleanest bursts |
+| J-pole #1 | Railroad | Weakest, but nearby BNSF traffic is typically strong |
+| Collinear | ADS-B | Works at 1090 MHz, ~2× aircraft / ~4× messages vs dipole |
 
 ---
 

@@ -23,7 +23,9 @@ devices:
     center_mhz: 156.800         # 2 MHz window covers 155.8–157.8 MHz (priority channels)
     channel_config: marine
     ppm: 0
-    gain: null
+    gain: 40.0                  # fixed gain — AGC caused simultaneous false triggers
+                                 # across nearly every channel (gain-hunting power steps).
+                                 # Starting value; re-tune if real signals are weak/clipped.
 
   # P25 trunking (Pierce County fire/police) moved off this stack entirely —
   # handled by a standalone Uniden SDS200 scanner, not RTL-SDR/trunk-recorder.

@@ -26,7 +26,8 @@ sudo apt-get install -y --no-install-recommends \
     libpython3-dev \
     ffmpeg \
     screen \
-    curl wget
+    curl wget \
+    xdotool
 
 # ── Blacklist DVB-T kernel modules (they grab the dongle before rtl-sdr can) ──
 BLACKLIST=/etc/modprobe.d/rtlsdr-blacklist.conf
