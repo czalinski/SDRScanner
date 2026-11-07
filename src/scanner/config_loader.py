@@ -16,6 +16,28 @@ def load_channel_config(name: str) -> dict:
         return yaml.safe_load(f)
 
 
+_STORAGE_DEFAULTS = {
+    "recordings_dir": "recordings",
+    "require_mount": None,
+    "retention_days": 7,
+    "max_disk_used_pct": 90,
+    "prune_interval_s": 600,
+}
+
+
+def load_storage() -> dict:
+    """config/storage.yaml merged over defaults; recordings_dir made absolute
+    (relative paths are relative to the repo root)."""
+    cfg = dict(_STORAGE_DEFAULTS)
+    path = _CONFIG_DIR / "storage.yaml"
+    if path.exists():
+        with open(path) as f:
+            cfg.update(yaml.safe_load(f) or {})
+    rec = Path(cfg["recordings_dir"])
+    cfg["recordings_dir"] = rec if rec.is_absolute() else _CONFIG_DIR.parent / rec
+    return cfg
+
+
 def device_by_id(device_id: str) -> dict:
     devices = load_devices()
     for dev in devices["devices"]:

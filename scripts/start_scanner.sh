@@ -3,20 +3,6 @@
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VENV="$REPO_DIR/.venv/bin/activate"
-LOG_DIR="$REPO_DIR/logs"
-mkdir -p "$LOG_DIR"
-
-source "$VENV"
-
-stop_all() {
-    echo "Stopping all scanner processes..."
-    pkill -f "src.scanner.main" 2>/dev/null || true
-    sudo systemctl stop piaware fr24feed 2>/dev/null || true
-    docker stop adsbx-feed 2>/dev/null || true
-}
-trap stop_all EXIT INT TERM
-
 echo "=== SDRScanner starting ==="
 
 # ADS-B + AIS: dump1090, rtl_ais, the AIS listener, and the full-screen map
@@ -52,10 +38,12 @@ else
     sudo systemctl start ais-listener 2>/dev/null || echo "[ais] could not start ais-listener"
 fi
 
-# Main Python scanner (railroad VHF + marine voice + HAM)
-echo "[scanner] Starting main scanner..."
-python3 -m src.scanner.main >> "$LOG_DIR/scanner.log" 2>&1 &
-
-echo "All services launched. Logs in $LOG_DIR/"
-echo "Press Ctrl+C to stop."
-wait
+# Main Python scanner (railroad VHF + marine voice + HAM) — sdr-scanner is a
+# systemd --user service (starts at boot); logs: journalctl --user -u sdr-scanner -f
+if systemctl --user is-active --quiet sdr-scanner; then
+    echo "[scanner] sdr-scanner.service already running"
+else
+    echo "[scanner] sdr-scanner.service not running — starting..."
+    systemctl --user start sdr-scanner
+fi
+systemctl --user --no-pager --lines=5 status sdr-scanner || true

@@ -1,17 +1,52 @@
 # Hardware Reference
 
-## Orange Pi Max V1.1
+## Orange Pi 5 Max
+
+Second board, in service since 2026-11-07. The first one overheated with a
+small passive heatsink and was retired; use the larger passive heatsink
+(fins vertical, open air) and keep the ADS-B map at its low redraw rate.
 
 | Spec | Value |
 |------|-------|
 | SoC | Rockchip RK3588 |
 | CPU | 4× Cortex-A76 + 4× Cortex-A55, up to 2.4 GHz |
-| RAM | 8 GB LPDDR4X |
-| Storage | 64 GB eMMC |
-| OS | Linux 6.1.99-vendor-rk35xx (aarch64) |
+| RAM | 16 GB LPDDR4X |
+| Boot / OS | 64 GB eMMC module — Armbian community 25.5 (Ubuntu noble), kernel 6.1.99-vendor-rk35xx |
+| Data | 512 GB NVMe (M.2, PCIe 3.0 ×4) mounted at `/mnt/sdrdata` |
 | USB | USB 3.0 ×2, USB 2.0 ×2 |
 | Network | 2.5 GbE |
-| IP | 192.168.68.98 |
+| Login | `zalinskic@192.168.68.70` (DHCP) |
+| Desktop | GDM auto-login, **X11** (`WaylandEnable=false` — the kiosk needs it) |
+
+### Storage
+
+The OS stays on the eMMC (cheap, swappable — a spare module is the recovery
+plan) and recordings go to the NVMe. Shortwave records almost continuously:
+16-bit 48 kHz mono WAV is ~96 KB/s, about 8 GB/day. That would fill the eMMC
+in days and wear it out; the NVMe has the space and the write endurance.
+
+- `/etc/fstab`: `UUID=<nvme0n1p1> /mnt/sdrdata ext4 defaults,noatime,nofail,x-systemd.device-timeout=10s 0 2`
+  — `nofail` means a dead NVMe doesn't stop the Pi booting.
+- The empty mount point is `chattr +i`, so if the NVMe isn't mounted, nothing
+  can write into `/mnt/sdrdata` on the eMMC.
+- `config/storage.yaml`: `recordings_dir: /mnt/sdrdata/recordings`,
+  `require_mount: /mnt/sdrdata` (the scanner refuses to start without it),
+  `retention_days: 7`, `max_disk_used_pct: 90`. Pruning runs at startup and
+  every 10 minutes (`src/scanner/retention.py`).
+- The eMMC root partition was grown to the full card (`growpart /dev/mmcblk0 1`
+  + `resize2fs`) — Armbian's image ships it at 14.7 GB.
+
+Set up on a fresh board/drive (erases the NVMe):
+
+```bash
+sudo wipefs -a /dev/nvme0n1
+printf 'label: gpt\n,,L\n' | sudo sfdisk /dev/nvme0n1
+sudo mkfs.ext4 -L sdrdata -m 1 /dev/nvme0n1p1
+sudo mkdir -p /mnt/sdrdata && sudo chattr +i /mnt/sdrdata
+echo "UUID=$(sudo blkid -s UUID -o value /dev/nvme0n1p1) /mnt/sdrdata ext4 defaults,noatime,nofail,x-systemd.device-timeout=10s 0 2" | sudo tee -a /etc/fstab
+sudo systemctl daemon-reload && sudo mount /mnt/sdrdata
+sudo mkdir /mnt/sdrdata/recordings && sudo chown -R $USER: /mnt/sdrdata
+```
 
 ## SDR Dongles
 

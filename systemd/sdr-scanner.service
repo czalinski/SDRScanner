@@ -1,0 +1,17 @@
+[Unit]
+Description=SDRScanner main scanner (railroad + marine VHF, HF shortwave: record + play)
+# Per-user (not system-wide) so aplay reaches the user's PipeWire audio
+# session. Lingering is enabled by install.sh, so this starts at boot even
+# without a desktop login. Recordings need /mnt/sdrdata (config/storage.yaml);
+# if it isn't mounted yet the scanner exits and is retried below.
+After=pipewire.service pipewire-pulse.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/home/czalinski/SDRScanner/scripts/run_scanner.sh
+Restart=on-failure
+RestartSec=15
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,25 @@
+# Where recordings go and how long they're kept (src/scanner/retention.py).
+#
+# On the Pi, recordings live on the NVMe data drive, not the eMMC boot drive:
+# shortwave records almost continuously (~96 KB/s of 16-bit 48 kHz WAV, about
+# 8 GB/day), which would fill the eMMC in days and wear it out over months.
+# See docs/hardware.md "Storage".
+
+# Absolute, or relative to the repo root. Falls back to ./recordings when this
+# file is missing (dev machines).
+recordings_dir: /mnt/sdrdata/recordings
+
+# Refuse to start unless this is a mounted filesystem, so a missing NVMe can't
+# silently fill the eMMC. (The empty mount point is also chattr +i, so writes
+# fail even if something else tries.) null = no check.
+require_mount: /mnt/sdrdata
+
+# Day folders (recordings/YYYYMMDD/) older than this are deleted.
+retention_days: 7
+
+# Safety net: if the drive is fuller than this, delete the oldest recordings
+# until it isn't, regardless of age.
+max_disk_used_pct: 90
+
+# How often to prune while running.
+prune_interval_s: 600

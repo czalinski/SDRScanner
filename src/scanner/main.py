@@ -1,23 +1,25 @@
 """SDRScanner — main entry point.
 
 Starts one Recorder per connected, configured device plus a shared PlaybackQueue.
-Each transmission on any channel is written to recordings/YYYYMMDD/ as a WAV
-file. The PlaybackQueue watches that directory and plays files in order, dropping
+Each transmission on any channel is written to <recordings_dir>/YYYYMMDD/ as a
+WAV file (config/storage.yaml — the NVMe data drive on the Pi); recordings
+older than retention_days are pruned while running. The PlaybackQueue watches that directory and plays files in order, dropping
 anything older than MAX_LATENCY_S to avoid stale-context playback.
 """
 import logging
 import signal
 import sys
 import threading
-from pathlib import Path
+import time
 
 from src.scanner.band_schedule import BandSwitcher, band_channels
-from src.scanner.config_loader import load_channel_config, load_devices
+from src.scanner.config_loader import load_channel_config, load_devices, load_storage
 from src.scanner.device_manager import list_connected_devices
 from src.scanner.fft_engine import Channel
 from src.scanner.linear_demod import DETECT_WINDOW
 from src.scanner.playback_queue import PlaybackQueue
 from src.scanner.recorder import Recorder
+from src.scanner.retention import check_mount, prune
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,7 +28,6 @@ logging.basicConfig(
 )
 log = logging.getLogger("scanner.main")
 
-RECORDINGS_DIR = Path("recordings")
 MAX_LATENCY_S = 30.0
 BAND_CHECK_S = 60.0       # how often band-scheduled devices check day/night
 
@@ -65,6 +66,22 @@ def _check_window(dev_id: str, center_hz: float, sample_rate: float,
 
 def main() -> None:
     log.info("SDRScanner starting…")
+
+    storage = load_storage()
+    RECORDINGS_DIR = storage["recordings_dir"]
+    if not check_mount(storage["require_mount"]):
+        log.error("%s is not mounted — refusing to record onto the boot drive. "
+                  "Check the NVMe (lsblk; sudo mount -a).", storage["require_mount"])
+        sys.exit(1)
+    RECORDINGS_DIR.mkdir(parents=True, exist_ok=True)
+
+    def _prune():
+        try:
+            prune(RECORDINGS_DIR, storage["retention_days"], storage["max_disk_used_pct"])
+        except Exception:
+            log.exception("Recording retention failed")
+
+    _prune()
 
     all_devices = load_devices()["devices"]
     connected_serials = {d["serial"] for d in list_connected_devices()}
@@ -139,8 +156,9 @@ def main() -> None:
     for sw in switchers:
         sw.start()
 
-    log.info("%d recorder(s), %d band-scheduled device(s) running. Recordings → %s/  "
-             "Press Ctrl+C to stop.", len(recorders), len(switchers), RECORDINGS_DIR)
+    log.info("%d recorder(s), %d band-scheduled device(s) running. Recordings → %s/ "
+             "(kept %g days)  Press Ctrl+C to stop.", len(recorders), len(switchers),
+             RECORDINGS_DIR, storage["retention_days"])
 
     stop_event = threading.Event()
 
@@ -151,7 +169,11 @@ def main() -> None:
     signal.signal(signal.SIGINT, _shutdown)
     signal.signal(signal.SIGTERM, _shutdown)
 
+    last_prune = time.monotonic()
     while not stop_event.wait(BAND_CHECK_S):
+        if time.monotonic() - last_prune >= storage["prune_interval_s"]:
+            last_prune = time.monotonic()
+            _prune()
         for sw in switchers:
             try:
                 sw.tick()

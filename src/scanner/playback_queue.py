@@ -77,11 +77,19 @@ class PlaybackQueue:
     def _watch(self) -> None:
         """Poll recordings dir every second; enqueue any WAV file not yet seen."""
         while not self._stop.is_set():
-            if self._dir.exists():
-                for f in sorted(self._dir.rglob("*.wav")):
-                    if f not in self._seen:
-                        self._seen.add(f)
-                        self.enqueue(f)
+            # Only today's and yesterday's day folders (yesterday covers
+            # midnight): with a week of recordings kept, rglob over the whole
+            # tree every second would cost real CPU, and anything older is
+            # past max_latency_s anyway.
+            now = time.time()
+            current: set[Path] = set()
+            for day in {time.strftime("%Y%m%d", time.localtime(now - d)) for d in (0, 86400)}:
+                day_dir = self._dir / day
+                if day_dir.is_dir():
+                    current.update(day_dir.glob("*.wav"))
+            for f in sorted(current - self._seen):
+                self.enqueue(f)
+            self._seen = current
             self._stop.wait(1.0)
 
     def _next(self) -> tuple[int, Path] | None:

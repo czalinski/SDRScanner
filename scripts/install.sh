@@ -38,6 +38,9 @@ echo "w /sys/module/usbcore/parameters/usbfs_memory_mb - - - - 0" \
     | sudo tee /etc/tmpfiles.d/sdrscanner-usbfs.conf > /dev/null
 echo 0 | sudo tee /sys/module/usbcore/parameters/usbfs_memory_mb > /dev/null
 
+# rtl-sdr's udev rules give the dongles to group plugdev
+sudo usermod -aG plugdev "$USER"
+
 # ── Blacklist DVB-T kernel modules (they grab the dongle before rtl-sdr can) ──
 BLACKLIST=/etc/modprobe.d/rtlsdr-blacklist.conf
 if [[ ! -f "$BLACKLIST" ]]; then
@@ -55,12 +58,10 @@ fi
 
 # ── SoapySDR + SoapyRTLSDR ────────────────────────────────────────────────────
 log "Installing SoapySDR..."
+# Needed before dump1090 is built: run_dump1090.sh uses --device-type soapy.
 sudo apt-get install -y --no-install-recommends \
     libsoapysdr-dev soapysdr-tools python3-soapysdr \
-    soapysdr-module-rtlsdr 2>/dev/null || {
-    log "SoapySDR not in apt — building from source..."
-    build_soapy_from_source
-}
+    soapysdr-module-rtlsdr
 
 # ── dump1090 (ADS-B) ──────────────────────────────────────────────────────────
 if ! command -v dump1090 &>/dev/null && ! command -v readsb &>/dev/null; then
@@ -69,7 +70,7 @@ if ! command -v dump1090 &>/dev/null && ! command -v readsb &>/dev/null; then
         log "Building dump1090 from source..."
         TMP=$(mktemp -d)
         git clone --depth=1 https://github.com/flightaware/dump1090.git "$TMP/dump1090"
-        make -C "$TMP/dump1090" -j"$(nproc)"
+        make -C "$TMP/dump1090" -j"$(nproc)" BLADERF=no HACKRF=no LIMESDR=no SOAPYSDR=yes
         sudo install -m755 "$TMP/dump1090/dump1090" /usr/local/bin/
         sudo install -m755 "$TMP/dump1090/view1090" /usr/local/bin/ 2>/dev/null || true
         rm -rf "$TMP"
@@ -123,19 +124,39 @@ fi
 # starts with the graphical session — needs GDM auto-login enabled, which
 # this Pi already has). See systemd/*.service.
 log "Installing kiosk systemd services..."
-sudo cp "$REPO_DIR/systemd/dump1090-adsb.service" /etc/systemd/system/
-sudo cp "$REPO_DIR/systemd/rtl-ais.service" /etc/systemd/system/
-sudo cp "$REPO_DIR/systemd/ais-listener.service" /etc/systemd/system/
+# The kiosk's fullscreen/focus self-heal (xdotool, _NET_ACTIVE_WINDOW) needs
+# an X11 session — force GDM off Wayland. Takes effect at the next boot.
+GDM_CONF=/etc/gdm3/custom.conf
+if [[ -f "$GDM_CONF" ]] && ! grep -qE '^\s*WaylandEnable\s*=\s*false' "$GDM_CONF"; then
+    log "Switching GDM to X11 (WaylandEnable=false) — reboot to apply."
+    if grep -qE '^\s*#?\s*WaylandEnable' "$GDM_CONF"; then
+        sudo sed -i -E 's/^\s*#?\s*WaylandEnable\s*=.*/WaylandEnable=false/' "$GDM_CONF"
+    else
+        sudo sed -i 's/^\[daemon\]$/[daemon]\nWaylandEnable=false/' "$GDM_CONF"
+    fi
+fi
+# Unit files are written for user czalinski in /home/czalinski/SDRScanner;
+# rewrite both to whoever runs this script and wherever the repo lives.
+install_unit() {   # <unit file> <destination dir> [sudo]
+    sed -e "s|/home/czalinski/SDRScanner|$REPO_DIR|g" -e "s|^User=czalinski$|User=$USER|" \
+        "$REPO_DIR/systemd/$1" | ${3:-} tee "$2/$1" > /dev/null
+}
+for unit in dump1090-adsb.service rtl-ais.service ais-listener.service; do
+    install_unit "$unit" /etc/systemd/system sudo
+done
 sudo systemctl daemon-reload
 sudo systemctl enable dump1090-adsb.service rtl-ais.service ais-listener.service
 
 mkdir -p "$HOME/.config/systemd/user"
-cp "$REPO_DIR/systemd/adsb-map.service" "$HOME/.config/systemd/user/"
+install_unit adsb-map.service "$HOME/.config/systemd/user"
+install_unit sdr-scanner.service "$HOME/.config/systemd/user"
 systemctl --user daemon-reload
-systemctl --user enable adsb-map.service
+systemctl --user enable adsb-map.service sdr-scanner.service
+# Start the user's services (sdr-scanner) at boot, not only at login
+sudo loginctl enable-linger "$USER"
 log "Kiosk services installed. Start now with:"
 log "  sudo systemctl start dump1090-adsb rtl-ais ais-listener"
-log "  systemctl --user start adsb-map"
+log "  systemctl --user start adsb-map sdr-scanner"
 
 # NOTE: P25 (fire/police) runs on a standalone Uniden SDS200, not this stack.
 # No OP25/GNU Radio dependency here — see docs/hardware.md.
@@ -154,4 +175,4 @@ log "Next steps:"
 log "  1. Reboot (or run: sudo modprobe -r dvb_usb_rtl28xxu)"
 log "  2. Verify dongles: rtl_test -t"
 log "  3. Set serial numbers: ./scripts/set_serials.sh"
-log "  4. Start scanner: ./scripts/start_scanner.sh"
+log "  4. Start scanner: ./scripts/start_scanner.sh  (or: systemctl --user start sdr-scanner)"
