@@ -33,6 +33,14 @@ SHIPS_JSON = REPO_DIR / "run" / "adsb-json" / "ships.json"
 # not the SDR's actual RF reception range (which is far larger, 150nm+).
 VISIBLE_RADIUS_MILES = 5
 POLL_INTERVAL_S = 1.0
+# The map only changes when new JSON is read (once a second), so it's redrawn
+# then and otherwise left alone; the loop itself just wakes LOOP_FPS times a
+# second to handle keys and the focus check. Was a constant 30 fps full-screen
+# redraw at ~177% CPU on the RK3588 — most of the board's heat.
+LOOP_FPS = 5
+# Window uncovered/remapped → contents may be gone, redraw (pygame 1 and 2 names)
+_EXPOSE_EVENTS = tuple(getattr(pygame, n) for n in ("VIDEOEXPOSE", "WINDOWEXPOSED")
+                       if hasattr(pygame, n))
 
 # GNOME Shell only hides its own top bar/dock over a fullscreen window that
 # currently has input focus — the fullscreen *state* alone isn't enough. If
@@ -193,6 +201,7 @@ def main() -> None:
         log.exception("Failed to build map background — falling back to solid color")
         background = pygame.Surface((screen_w, screen_h))
         background.fill(BG_FALLBACK_COLOR)
+    background = background.convert()      # display pixel format → cheap blit
     log.info("Background ready. Entering main loop.")
 
     clock = pygame.time.Clock()
@@ -200,6 +209,7 @@ def main() -> None:
     last_fullscreen_reassert = time.monotonic()
     aircraft: list[dict] = []
     ships: list[dict] = []
+    dirty = True
 
     running = True
     while running:
@@ -208,18 +218,27 @@ def main() -> None:
                 running = False
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 running = False
+            elif event.type in _EXPOSE_EVENTS:
+                dirty = True
 
         now = time.monotonic()
         if now - last_poll >= POLL_INTERVAL_S:
             aircraft = load_aircraft()
             ships = load_ships()
             last_poll = now
+            dirty = True
 
         lost_focus = not pygame.display.get_active() or not pygame.key.get_focused()
         if lost_focus and now - last_fullscreen_reassert >= FULLSCREEN_REASSERT_S:
             last_fullscreen_reassert = now
             log.warning("Lost window focus/fullscreen — reasserting.")
             screen = _claim_fullscreen()
+            dirty = True
+
+        if not dirty:
+            clock.tick(LOOP_FPS)
+            continue
+        dirty = False
 
         screen.blit(background, (0, 0))
         for ac in aircraft:
@@ -233,7 +252,7 @@ def main() -> None:
         screen.blit(attrib_text, (10, screen_h - 20))
 
         pygame.display.flip()
-        clock.tick(30)
+        clock.tick(LOOP_FPS)
 
     pygame.quit()
 

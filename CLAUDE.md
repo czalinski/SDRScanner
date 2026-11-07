@@ -8,8 +8,8 @@ Multi-channel Software Defined Radio scanner running on an Orange Pi Max V1.1 (R
 |--------|------|--------|
 | RTL-SDR.COM V3 #1 (R820T2) | BNSF Railroad scanner | Connected |
 | RTL-SDR.COM V3 #2 (R820T2) | Marine VHF voice | Connected |
-| NooElec NESDR SMArt v5 (R820T2) | ADS-B (1090 MHz), fed to FlightAware/FR24/ADS-B Exchange | Connected |
-| NooElec NESDR SMArTee v5 (bias-tee) | AIS ship tracking | Connected — serial/antenna feed pending |
+| NooElec NESDR SMArTee v5 (bias-tee), serial `RTL_ADSB` | ADS-B (1090 MHz), fed to FlightAware/FR24/ADS-B Exchange — collinear (DC-open, bias-tee safe) | Connected |
+| NooElec NESDR SMArt v5, serial `RTLSDR_AIS` | AIS ship tracking — J-pole #2 (DC short: never on a bias-tee dongle) | Connected |
 | NooElec NESDR SMArt XTR + Ham It Up | HAM/shortwave HF, receive only (AM/SSB/CW) | Connected — long wire via unun, no counterpoise yet |
 | Uniden SDS200 (standalone scanner) | P25 trunking — Pierce County fire/police | Planned purchase |
 | HDMI monitor (primary display) | Full-screen ADS-B+AIS live map kiosk | Built — `src/display/adsb_map.py`, systemd auto-start |
@@ -20,7 +20,7 @@ status across Marine/Railroad/HAM (not built yet — see `TODO.md`).
 P25 (fire/police) runs on a standalone Uniden SDS200, not the RTL-SDR/Orange
 Pi stack — see `docs/hardware.md` and `docs/antennas.md` §3.
 
-Target host: `czalinski@192.168.68.98`
+Target host: `czalinski@<pi>` (DHCP — was .98, then .70; check the router)
 
 ## Project Layout
 

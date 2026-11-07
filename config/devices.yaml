@@ -37,11 +37,20 @@ devices:
   # is reused below for ADS-B; the other (NooElec SMArTee v5) is reused for
   # AIS below — see `ais`.
 
+  # ADS-B and AIS swapped dongles 2026-11-06. The SMArTee's bias-tee puts
+  # ~4.5 V DC on its antenna jack, and a J-pole's shorted matching stub is a
+  # DC short across the coax — so the J-pole (AIS) must not be on the
+  # SMArTee. The 1090 MHz collinear measures open circuit (checked with a
+  # multimeter), so it goes on the SMArTee, which can later also power a
+  # filtered 1090 MHz LNA at the antenna over the coax.
   - id: adsb
-    serial: "RTLSDR_ADSB"      # NooElec v5 #2 — repurposed from spare P25 dongle
-    model: "NooElec NESDR SMArt v5"
+    serial: "RTL_ADSB"          # NooElec SMArTee v5 — burned 2026-11-06 (was RTL_AIS).
+                                 # Short serial: this dongle's longer product string
+                                 # ("NESDR SMArTee v5") leaves less EEPROM space;
+                                 # RTLSDR_ADSB / RTLSDR_AIS don't fit.
+    model: "NooElec NESDR SMArTee v5 (bias-tee)"
     role: "ADS-B 1090 MHz aircraft tracking"
-    antenna: "1090 MHz collinear (built, tested 2026-11-06 — docs/antennas.md §7)"
+    antenna: "1090 MHz collinear (DC-open, safe with bias-tee — docs/antennas.md §7)"
     sample_rate: 2000000
     center_mhz: 1090.0
     channel_config: null        # dump1090 handles ADS-B; no scan loop needed
@@ -49,16 +58,13 @@ devices:
     gain: null
 
   - id: ais
-    serial: "RTL_AIS"           # NooElec SMArTee v5 — repurposed from the HAM role below.
-                                 # Shortened from RTLSDR_AIS: this dongle's longer product
-                                 # string ("NESDR SMArTee v5") left less EEPROM space than
-                                 # the plain SMArt v5 did, and RTLSDR_AIS (10 chars) didn't fit.
-                                 # (AIS needs its own dedicated dongle: exclusive-access,
-                                 # and 161.975/162.025 MHz falls outside the marine voice
-                                 # dongle's 155.8-157.8 MHz window)
-    model: "NooElec NESDR SMArTee v5 (bias-tee enabled)"
+    serial: "RTLSDR_AIS"        # NooElec SMArt v5 (no bias-tee) — burned 2026-11-06
+                                 # (was RTLSDR_ADSB). AIS needs its own dongle:
+                                 # rtl_ais wants exclusive access, and 161.975/162.025 MHz
+                                 # is outside the marine voice dongle's window.
+    model: "NooElec NESDR SMArt v5"
     role: "AIS vessel tracking — Commencement Bay"
-    antenna: "J-pole #2 (built, tested 2026-11-06 — docs/antennas.md §7)"
+    antenna: "J-pole #2 (DC short — keep off bias-tee dongles; docs/antennas.md §7)"
     sample_rate: 2048000
     center_mhz: 162.000          # covers both AIS ch 87B/88B: 161.975 / 162.025 MHz
     channel_config: null         # rtl_ais + src/display/ais_listener.py handle AIS directly

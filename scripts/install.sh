@@ -29,6 +29,15 @@ sudo apt-get install -y --no-install-recommends \
     curl wget \
     xdotool
 
+# ── Lift the usbfs buffer limit (default 16 MB shared by all USB devices) ──
+# Five dongles streaming at once exhaust it: the last one to open fails with
+# "Failed to submit transfer" and stops capturing. 0 = no limit. The tmpfiles
+# rule re-applies it at every boot.
+log "Lifting usbfs buffer limit..."
+echo "w /sys/module/usbcore/parameters/usbfs_memory_mb - - - - 0" \
+    | sudo tee /etc/tmpfiles.d/sdrscanner-usbfs.conf > /dev/null
+echo 0 | sudo tee /sys/module/usbcore/parameters/usbfs_memory_mb > /dev/null
+
 # ── Blacklist DVB-T kernel modules (they grab the dongle before rtl-sdr can) ──
 BLACKLIST=/etc/modprobe.d/rtlsdr-blacklist.conf
 if [[ ! -f "$BLACKLIST" ]]; then

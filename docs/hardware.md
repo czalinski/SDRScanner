@@ -44,26 +44,40 @@ uses the same DPD 769–775 MHz omni antenna spec'd for this project
 (see `docs/antennas.md` §3), fed directly — no splitter or preamp needed
 since it's a single receiver.
 
-Of the two NooElec RTL-SDR v5 dongles originally planned for P25, one is
-reused below for ADS-B; the other (a SMArTee v5, bias-tee enabled) is now
-reused for AIS — see below. HAM gets its own dedicated dongle instead (a
+Of the two NooElec RTL-SDR v5 dongles originally planned for P25, the
+SMArTee v5 (bias-tee) is now used for ADS-B and the plain SMArt v5 for AIS
+— see below (swapped 2026-11-06 because of the bias-tee, see §SMArTee). HAM gets its own dedicated dongle instead (a
 NooElec SMArt XTR HF Bundle), since AIS needs the SMArTee.
 
-### NooElec RTL-SDR v5 (SMArTee variant) — AIS
+### NooElec NESDR SMArTee v5 (bias-tee) — ADS-B
 
 | Spec | Value |
 |------|-------|
 | Tuner | Rafael Micro R820T2 |
 | Frequency range | 500 kHz – 1.75 GHz |
 | Connector | SMA female |
-| Bias-T | Yes — not needed for AIS, just a side effect of reusing this dongle |
+| Bias-T | Yes — ~4.5 V DC on the antenna jack |
 
-**Assigned role:** `RTL_AIS` — AIS vessel tracking,
+**Assigned role:** `RTL_ADSB` — ADS-B 1090 MHz, decoded by dump1090.
+Antenna: the 1090 MHz collinear, which measures **open circuit** at DC
+(multimeter, 2026-11-06) and so is safe on the bias-tee. The bias-tee can
+later power a filtered 1090 MHz LNA mounted at the antenna.
+
+**Never connect a J-pole (or any DC-shorted antenna) to this dongle.** A
+J-pole's matching stub is shorted at the bottom, which shorts the bias-tee
+supply; that's the likely cause of the repeated USB disconnects seen when
+the AIS J-pole was on it. Serial is short (`RTL_ADSB`) because this
+dongle's longer product string leaves less EEPROM room — `RTLSDR_ADSB` and
+`RTLSDR_AIS` don't fit.
+
+### NooElec NESDR SMArt v5 — AIS
+
+**Assigned role:** `RTLSDR_AIS` (no bias-tee) — AIS vessel tracking,
 Commencement Bay. Needs its own dedicated dongle: `rtl_ais` requires
 exclusive device access, and AIS's frequencies (161.975/162.025 MHz) fall
-outside the marine voice dongle's 155.8–157.8 MHz window. Antenna: a
-dedicated third J-pole (see `docs/antennas.md` §5) rather than a splitter
-off the marine antenna — avoids splitter loss, not yet built. Decoded via
+outside the marine voice dongle's 155.8–157.8 MHz window. Antenna: J-pole
+#2 (see `docs/antennas.md` §5/§7) rather than a splitter off the marine
+antenna — avoids splitter loss. Decoded via
 `rtl_ais` + `src/display/ais_listener.py` (uses the `pyais` library),
 rendered as dark blue markers on the same live map as ADS-B aircraft
 (bright red) — see `src/display/adsb_map.py`.
@@ -96,8 +110,8 @@ OrangePi USB port
 └── Externally-powered USB hub
     ├── RTL-SDR.COM V3 #1  (RTLSDR_RR)
     ├── RTL-SDR.COM V3 #2  (RTLSDR_MRN)
-    ├── NooElec SMArt v5   (RTLSDR_ADSB)
-    ├── NooElec SMArTee v5 (RTL_AIS)
+    ├── NooElec SMArTee v5 (RTL_ADSB)   ← 1090 collinear (bias-tee safe)
+    ├── NooElec SMArt v5   (RTLSDR_AIS) ← J-pole #2
     └── NooElec SMArt XTR  (RTLSDR_HAM) ← Ham It Up ← long wire
 ```
 

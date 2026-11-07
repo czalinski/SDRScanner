@@ -1,5 +1,5 @@
 # ADS-B — 1090 MHz Aircraft Tracking
-# Device: adsb (NooElec NESDR SMArt v5, serial RTLSDR_ADSB — see config/devices.yaml)
+# Device: adsb (NooElec NESDR SMArTee v5, serial RTL_ADSB — see config/devices.yaml)
 # Decoded by: dump1090 (source-built per scripts/install.sh — this box does
 # NOT have the packaged dump1090-fa service, so no built-in HTTP JSON server;
 # --write-json is used instead, see below)

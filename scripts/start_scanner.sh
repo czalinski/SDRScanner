@@ -29,20 +29,20 @@ echo "=== SDRScanner starting ==="
 # configured.
 if systemctl is-active --quiet dump1090-adsb; then
     echo "[adsb] dump1090-adsb.service already running"
-elif rtl_test -d RTLSDR_ADSB -t &>/dev/null; then
+elif rtl_test -d RTL_ADSB -t &>/dev/null; then
     echo "[adsb] dump1090-adsb.service not running — starting..."
     sudo systemctl start dump1090-adsb
 else
-    echo "[adsb] RTLSDR_ADSB dongle not found — skipping"
+    echo "[adsb] RTL_ADSB dongle not found — skipping"
 fi
 
 if systemctl is-active --quiet rtl-ais; then
     echo "[ais] rtl-ais.service already running"
-elif rtl_test -d RTL_AIS -t &>/dev/null; then
+elif rtl_test -d RTLSDR_AIS -t &>/dev/null; then
     echo "[ais] rtl-ais.service not running — starting..."
     sudo systemctl start rtl-ais
 else
-    echo "[ais] RTL_AIS dongle not found — skipping"
+    echo "[ais] RTLSDR_AIS dongle not found — skipping"
 fi
 
 if systemctl is-active --quiet ais-listener; then

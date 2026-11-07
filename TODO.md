@@ -39,8 +39,10 @@ Marine/Railroad/HAM (not built yet — see "Declared but not built" below).
 
 ## Hardware
 
-- [x] AIS serial burned: `RTL_AIS` (shortened from `RTLSDR_AIS` — didn't fit
-      this dongle's EEPROM string space). Replugged and confirmed.
+- [x] ADS-B/AIS dongles swapped 2026-11-06 (bias-tee vs DC-shorted J-pole):
+      SMArTee → `RTL_ADSB` + collinear, SMArt v5 → `RTLSDR_AIS` + J-pole #2.
+- [ ] Optional ADS-B upgrade: filtered 1090 MHz LNA at the antenna, powered
+      by the SMArTee's bias-tee.
 - [x] **AIS antenna decided**: a dedicated third J-pole (161.975/162.025 MHz,
       see `docs/antennas.md` §5), not a splitter off the marine antenna —
       avoids splitter loss. Not yet built.

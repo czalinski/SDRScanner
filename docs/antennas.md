@@ -7,8 +7,8 @@
 | RTL-SDR.COM V3 #1 | 160–162 MHz (Railroad) | J-pole **#1** (built, field-tested — see §7) — design §1 |
 | RTL-SDR.COM V3 #2 | 156–162 MHz (Marine VHF) | J-pole **#3** (built, field-tested — see §7) — design §2 |
 | Uniden SDS200 (standalone, not RTL-SDR) | 763–775 MHz (P25 fire/police) | DPD 769–775 MHz omni collinear |
-| NooElec NESDR SMArt v5 | 1090 MHz (ADS-B) | Collinear (built, field-tested — see §7) — design §4 |
-| NooElec NESDR SMArTee v5 | 161.975/162.025 MHz (AIS) | J-pole **#2** (built, field-tested — see §7) — design §5 |
+| NooElec NESDR SMArTee v5 (bias-tee) | 1090 MHz (ADS-B) | Collinear (built, field-tested — see §7; DC-open, bias-tee safe) — design §4 |
+| NooElec NESDR SMArt v5 (no bias-tee) | 161.975/162.025 MHz (AIS) | J-pole **#2** (built, field-tested — see §7) — design §5 |
 | NooElec NESDR SMArt XTR (not yet purchased) | HF (HAM, band TBD) | Bundle includes antennas + balun (§6) |
 
 ---
@@ -183,7 +183,7 @@ which is worth it — under ~15 ft, even RG-8X costs under 2 dB.
 
 ---
 
-## 4. ADS-B Antenna (1090 MHz — NooElec NESDR SMArt v5)
+## 4. ADS-B Antenna (1090 MHz — NooElec NESDR SMArTee v5)
 
 **λ at 1090 MHz = 27.5 cm**
 
@@ -204,7 +204,7 @@ which is worth it — under ~15 ft, even RG-8X costs under 2 dB.
 
 ---
 
-## 5. AIS Antenna (161.975/162.025 MHz — NooElec SMArTee v5)
+## 5. AIS Antenna (161.975/162.025 MHz — NooElec NESDR SMArt v5)
 
 **Target:** AIS channels 87B/88B, 161.975/162.025 MHz — center 162.0 MHz.
 
@@ -354,6 +354,11 @@ noise pickup — expected, it's 1/7 of its design frequency. Not a defect.)
 |---|---|---|
 | J-pole #3 | Marine VHF voice | Best sensitivity; distant boats are the weakest target |
 | J-pole #2 | AIS | Appears tuned toward 162 MHz; lowest noise; cleanest bursts |
+
+**J-poles are a DC short** (the matching stub is shorted at the bottom, across
+the coax). Never put one on a bias-tee dongle (the SMArTee) — it shorts the
+bias-tee supply. The collinear measures open circuit, so it's the one on the
+SMArTee.
 | J-pole #1 | Railroad | Weakest, but nearby BNSF traffic is typically strong |
 | Collinear | ADS-B | Works at 1090 MHz, ~2× aircraft / ~4× messages vs dipole |
 

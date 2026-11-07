@@ -17,7 +17,7 @@ print(d['freq_mhz'] * 1e6, d['gain'], m['receiver_lat'], m['receiver_lon'], d['w
 
 mkdir -p "$REPO_DIR/$JSON_DIR"
 
-exec dump1090 --device-type soapy --device driver=rtlsdr,serial=RTLSDR_ADSB \
+exec dump1090 --device-type soapy --device driver=rtlsdr,serial=RTL_ADSB \
     --freq "$FREQ_HZ" --gain "$GAIN" \
     --lat "$LAT" --lon "$LON" \
     --write-json "$REPO_DIR/$JSON_DIR" --write-json-every "$JSON_EVERY" \
