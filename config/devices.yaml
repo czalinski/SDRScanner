@@ -7,10 +7,11 @@ devices:
     serial: "RTLSDR_RR"        # RTL-SDR.COM V3 #1
     model: "RTL-SDR.COM V3 (R820T2)"
     role: "BNSF Railroad scanner"
-    antenna: "161 MHz J-pole (equipment ordered, not yet built — see docs/antennas.md §1)"
+    antenna: "J-pole #1 (built, tested 2026-11-06 — docs/antennas.md §7)"
     sample_rate: 2048000
     center_mhz: 161.0           # 2 MHz window covers 160–162 MHz (all BNSF channels)
     channel_config: railroad
+    playback_priority: 1         # lower = more important; interrupts ham
     ppm: 0                      # calibrate per-device with kalibrate-rtl
     gain: null                  # null = AGC; set dB value to fix gain
 
@@ -18,10 +19,11 @@ devices:
     serial: "RTLSDR_MRN"       # RTL-SDR.COM V3 #2
     model: "RTL-SDR.COM V3 (R820T2)"
     role: "Marine VHF voice"
-    antenna: "159 MHz J-pole (equipment ordered, not yet built — see docs/antennas.md §2)"
+    antenna: "J-pole #3 (built, tested 2026-11-06 — docs/antennas.md §7)"
     sample_rate: 2048000
     center_mhz: 156.800         # 2 MHz window covers 155.8–157.8 MHz (priority channels)
     channel_config: marine
+    playback_priority: 0         # lower = more important; interrupts ham
     ppm: 0
     gain: 40.0                  # fixed gain — AGC caused simultaneous false triggers
                                  # across nearly every channel (gain-hunting power steps).
@@ -39,7 +41,7 @@ devices:
     serial: "RTLSDR_ADSB"      # NooElec v5 #2 — repurposed from spare P25 dongle
     model: "NooElec NESDR SMArt v5"
     role: "ADS-B 1090 MHz aircraft tracking"
-    antenna: "1090 MHz spider ground plane"
+    antenna: "1090 MHz collinear (built, tested 2026-11-06 — docs/antennas.md §7)"
     sample_rate: 2000000
     center_mhz: 1090.0
     channel_config: null        # dump1090 handles ADS-B; no scan loop needed
@@ -56,7 +58,7 @@ devices:
                                  # dongle's 155.8-157.8 MHz window)
     model: "NooElec NESDR SMArTee v5 (bias-tee enabled)"
     role: "AIS vessel tracking — Commencement Bay"
-    antenna: "162 MHz J-pole (dedicated — not a splitter off marine, see docs/antennas.md §5)"
+    antenna: "J-pole #2 (built, tested 2026-11-06 — docs/antennas.md §7)"
     sample_rate: 2048000
     center_mhz: 162.000          # covers both AIS ch 87B/88B: 161.975 / 162.025 MHz
     channel_config: null         # rtl_ais + src/display/ais_listener.py handle AIS directly
@@ -64,20 +66,22 @@ devices:
     gain: null
 
   - id: ham
-    serial: null                # TODO: not yet burned — pending XTR bundle arrival
-    model: "NooElec NESDR SMArt XTR (HF Bundle)"
-    role: "HAM HF (SSB/CW) monitoring"
-    antenna: null                # TODO: bundle includes antennas + balun; band(s) TBD
-    sample_rate: null            # TODO
-    center_mhz: null             # TODO: HF band segment(s) to cover
-    channel_config: null         # TODO: HF scanning needs voice-activity detection,
-                                  # not the FM power-threshold FFT used for railroad/marine
+    serial: "RTLSDR_HAM"       # burned 2026-11-06 (was factory default 00000001)
+    model: "NooElec NESDR SMArt XTR v5 (E4000 tuner) + Ham It Up upconverter"
+    role: "Shortwave broadcast (+ HAM) — receive only, day/night band switching"
+    antenna: "Long wire → unun → Ham It Up → XTR (no counterpoise yet)"
+    sample_rate: 2048000
+    center_mhz: null             # set per band — day/night schedule in
+                                  # config/channels/ham.yaml (`bands:`)
+    upconverter_offset_mhz: 125.0 # Ham It Up LO — dongle tunes center + 125 MHz
+    channel_config: ham
     ppm: 0
-    gain: null
+    gain: 30.0                   # fixed — a long wire can overload the E4000
+                                  # on strong broadcasters; AGC hunts (see marine)
+    max_segment_s: 30            # split continuous broadcasts into 30 s files
+    playback_priority: 5         # background — marine/railroad interrupt it
     notes: >
-      Decided: buy the NooElec SMArt XTR HF Bundle (XTR + Ham It Up Plus v2
-      upconverter + antennas + balun) rather than just an upconverter for the
-      SMArTee v5 — the SMArTee is now needed for AIS instead (see `ais`
-      above), so a bundled dedicated dongle for HAM avoids a conflict. Not
-      yet purchased. Needs an SSB/CW demodulator — the existing NFM demod
-      chain (railroad/marine) doesn't apply.
+      Receive only. E4000 tuning range starts ~52 MHz, so HF reception
+      depends entirely on the Ham It Up: mode button set so only the "UP"
+      LED is lit (upconvert, no amp), antenna on RF IN, XTR on IF OUT.
+      Verified 2026-11-06: WWV 10/15 MHz and broadcasters received.

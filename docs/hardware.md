@@ -70,15 +70,24 @@ rendered as dark blue markers on the same live map as ADS-B aircraft
 
 ### NooElec NESDR SMArt XTR HF Bundle — HAM/HF
 
-Not yet purchased. Includes: SMArt XTR RTL-SDR, Ham It Up Plus v2
+Connected 2026-11-06. Includes: SMArt XTR RTL-SDR (Elonics E4000 tuner,
+~52 MHz and up — HF only via the upconverter), Ham It Up Plus v2
 upconverter, 3 antennas, balun, adapters — a purpose-built kit rather than
 assembling pieces separately (the original plan of adding just an
 upconverter to the existing SMArTee v5 no longer works now that the
 SMArTee is needed for AIS).
 
-**Assigned role:** `RTLSDR_HAM` (not yet burned, hardware not yet
-purchased) — HAM HF (SSB/CW) monitoring. Needs an SSB/CW demodulator — the
-NFM demod chain used for railroad/marine doesn't apply to HF voice/CW.
+**Assigned role:** `RTLSDR_HAM` (burned 2026-11-06; takes effect after a
+physical replug) — HAM/shortwave HF, receive only. Demodulated by
+`src/scanner/linear_demod.py` (AM/USB/LSB/CW); channels in
+`config/channels/ham.yaml`, dial frequencies + `upconverter_offset_mhz: 125`.
+
+Signal chain: long wire → unun → Ham It Up (RF IN) → Ham It Up (IF OUT) →
+XTR. Ham It Up mode button: the four white LEDs are UP+Amp / UP / Amp / PT
+(pass-through); use **UP** (upconvert, no amp). In PT or Amp the HF signal
+isn't shifted and the XTR (E4000, ~52 MHz and up) hears nothing. **Note:** librtlsdr treats a
+numeric `-d` argument as a device index, so `rtl_power -d 00000001` opened
+device #1 (ADS-B), not the XTR — use `-d RTLSDR_HAM` once replugged.
 
 ## USB Topology
 
@@ -89,7 +98,7 @@ OrangePi USB port
     ├── RTL-SDR.COM V3 #2  (RTLSDR_MRN)
     ├── NooElec SMArt v5   (RTLSDR_ADSB)
     ├── NooElec SMArTee v5 (RTL_AIS)
-    └── NooElec SMArt XTR  (RTLSDR_HAM) — not yet purchased
+    └── NooElec SMArt XTR  (RTLSDR_HAM) ← Ham It Up ← long wire
 ```
 
 **Important:** Must use an externally-powered hub — several dongles running

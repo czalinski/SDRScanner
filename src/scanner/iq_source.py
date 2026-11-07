@@ -11,6 +11,10 @@ log = logging.getLogger(__name__)
 
 BLOCK_SIZE = 32768  # samples per delivered block (~16 ms at 2.048 MS/s)
 _READ_CHUNK = 16384  # samples per readStream call — large enough to drain the USB buffer promptly
+# Discard this much IQ after tuning: the tuner/PLL settling produces a burst
+# of junk that the detector reads as activity (seen as short false
+# recordings right after an HF band switch).
+SETTLE_S = 0.5
 
 
 class IQSource:
@@ -45,6 +49,7 @@ class IQSource:
     # ── private ────────────────────────────────────────────────────────────────
 
     def _loop(self) -> None:
+        dev = stream = None
         try:
             dev = SoapySDR.Device({"driver": "rtlsdr", "serial": self.serial})
             dev.setSampleRate(SOAPY_SDR_RX, 0, self.sample_rate)
@@ -63,6 +68,7 @@ class IQSource:
 
             acc = np.zeros(BLOCK_SIZE, dtype=np.complex64)
             pos = 0
+            settle_blocks = int(SETTLE_S * self.sample_rate / BLOCK_SIZE)
             buf = np.zeros(_READ_CHUNK, dtype=np.complex64)
 
             _TIMEOUT = -1   # SoapySDR SOAPY_SDR_TIMEOUT — normal during startup
@@ -82,23 +88,36 @@ class IQSource:
                 if sr.ret == 0:
                     continue
 
-                n = sr.ret
-                remaining = BLOCK_SIZE - pos
-                if n <= remaining:
-                    acc[pos:pos + n] = buf[:n]
-                    pos += n
-                else:
-                    acc[pos:] = buf[:remaining]
-                    pos = BLOCK_SIZE
-
-                if pos >= BLOCK_SIZE:
+                # Copy into fixed-size blocks; samples past the end of one
+                # block start the next (dropping them would put a gap in the
+                # audio every time a read straddles a block boundary).
+                n, src = sr.ret, 0
+                while src < n:
+                    take = min(n - src, BLOCK_SIZE - pos)
+                    acc[pos:pos + take] = buf[src:src + take]
+                    pos += take
+                    src += take
+                    if pos < BLOCK_SIZE:
+                        break
+                    pos = 0
+                    if settle_blocks > 0:
+                        settle_blocks -= 1
+                        continue
                     try:
                         self._q.put_nowait(acc.copy())
                     except queue.Full:
                         pass  # consumer too slow; drop block
-                    pos = 0
 
         except Exception:
             log.exception("IQSource thread crashed (serial=%s)", self.serial)
         finally:
+            # Release the dongle explicitly so it can be reopened right away
+            # (band switching retunes by stopping and restarting the source).
+            if dev is not None and stream is not None:
+                try:
+                    dev.deactivateStream(stream)
+                    dev.closeStream(stream)
+                except Exception:
+                    log.exception("Error closing stream (serial=%s)", self.serial)
+            dev = None
             log.info("IQSource %s stopped", self.serial)

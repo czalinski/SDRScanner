@@ -49,8 +49,15 @@ Marine/Railroad/HAM (not built yet — see "Declared but not built" below).
       dimensions are in `docs/antennas.md` §5 (very close to the other two,
       consider building as a batch). This is the only remaining blocker for
       live ship tracking — the software side is done.
-- [ ] **HAM**: buy the NooElec SMArt XTR HF Bundle (Amazon), burn
-      `RTLSDR_HAM` onto the XTR once it arrives (`./scripts/set_serials.sh ham`).
+- [x] **HAM**: XTR + Ham It Up connected; `RTLSDR_HAM` burned 2026-11-06.
+- [x] HF chain working (2026-11-06): Ham It Up was wired backwards; now
+      antenna → RF IN, IF OUT → XTR, mode LED "UP" (upconvert, no amp).
+      WWV 10/15 MHz and 22m/31m broadcasters received; WWV 15 decoded.
+      (The XTR also needed a physical replug — a software USB reset left it
+      streaming garbage.)
+- [ ] Compare Ham It Up "UP" vs "UP+Amp" with a sweep — keep the amp only
+      if signals rise more than the noise floor does.
+- [ ] Counterpoise/ground for the long-wire unun.
 - [ ] Build/mount ADS-B antenna (spec: `docs/antennas.md` §4)
 - [ ] Spec + build HAM antenna once band(s) of interest are chosen
       (`docs/antennas.md` §6 — may not be needed at all if the XTR bundle's
@@ -85,20 +92,31 @@ Marine/Railroad/HAM (not built yet — see "Declared but not built" below).
       the playback queue now that project scope has changed (the pieces —
       FFT scan, NFM demod, recorder, playback queue — exist per git
       history, but haven't been retested since the P25 pivot)
-- [ ] **Playback queue is currently a single shared FIFO across all
-      devices** (`src/scanner/playback_queue.py`) — one `aplay` at a time,
-      no priority awareness even though channel YAMLs already have a
-      `priority` flag. Adding HAM traffic (which may run higher duty-cycle
-      than railroad/marine) risks burying or stale-dropping priority
-      channels (Ch 16 distress, BNSF road channels). Needs a priority-aware
-      playback model before HAM goes live — agreed direction: priority
-      channels preempt/jump ahead of routine traffic in the same shared
-      queue, not separate audio outputs.
-- [ ] HAM needs an **SSB/CW demodulator** — `src/scanner/nfm_demod.py` only
-      handles NFM. Also needs a different channel-activity detection
-      approach than the FFT power-threshold used for railroad/marine (HF
-      noise floor/QRM makes that unreliable for SSB) — likely audio-domain
-      voice-activity detection instead.
+- [x] **Device-level playback priority with preemption** —
+      `playback_priority` in devices.yaml (marine 0, railroad 1, ham 5); a
+      recording from a more important device interrupts the one playing, so
+      continuous HAM/shortwave audio can't bury or stale-drop marine/railroad.
+- [ ] **Channel-level playback priority** — the `priority` flag in channel
+      YAMLs (e.g. Ch 16 distress over Ch 12, BNSF road channels) is still
+      ignored; only device priority is used.
+- [x] HAM **AM/SSB/CW demodulator** — `src/scanner/linear_demod.py`, tested
+      in `tests/test_ham.py`. Continuous stations split into 30 s files.
+- [x] **Shortwave day/night band switching** — `src/scanner/band_schedule.py`,
+      sun elevation at the receiver; day 22m+19m (14.55 MHz), night 49m+41m
+      (6.75 MHz). Each band scans the 5 kHz broadcast raster and records one
+      station at a time (`max_active_channels: 1`). Verified live: locked
+      onto 13.870 MHz and recorded continuous 30 s files through fades.
+- [ ] Check the night band after dark — the 49m/41m choice is from general
+      propagation, not yet confirmed with a night sweep from this antenna.
+- [ ] Optional: rotate to another station after N minutes (currently stays
+      on one station until it fades or the band switches).
+- [x] Fixed detector cutting off long transmissions: the noise floor used
+      to climb into any steady carrier in ~0.3 s, ending recordings ~3 s in
+      (affected marine/railroad too). Re-test VHF end to end with this.
+- [ ] Tune HAM activity detection against real signals — it uses the same
+      FFT power threshold as VHF, with a per-mode SSB/CW/AM energy window.
+      If HF noise/QRM makes that unreliable for SSB, switch to audio-domain
+      voice-activity detection.
 - [ ] If any HAM digital modes (FT8, PSK31, etc.) end up in scope: these
       aren't "audio to play back" the way NFM/SSB/CW are — they need
       time-synced decode (WSJT-x-style) producing decoded text/callsigns,

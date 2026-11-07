@@ -1,0 +1,74 @@
+# HF shortwave broadcast (+ HAM) — receive only
+# Device: NooElec SMArt XTR (RTLSDR_HAM) behind a Ham It Up upconverter in
+# "UP" mode (HF + 125 MHz — see `upconverter_offset_mhz` in devices.yaml).
+#
+# All frequencies are dial frequencies (what's on the air), not the
+# upconverted frequency the dongle actually tunes.
+#
+# Day/night switching (src/scanner/band_schedule.py): the dongle covers one
+# ~1.8 MHz window at a time (center ±0.92 MHz). The `day` band is used while
+# the sun is at least `day_sun_elevation_deg` above the horizon at the
+# receiver (lat/lon from config/channels/adsb.yaml), `night` otherwise.
+# Checked every minute; switching retunes the dongle.
+#
+# Each band can have:
+#   scan_ranges — every `step_khz` slot becomes a channel. Shortwave
+#                 broadcasters sit on a 5 kHz raster and their schedules
+#                 change seasonally, so scanning the raster finds whoever is
+#                 on the air without a hand-kept station list.
+#   channels    — fixed frequencies (name, freq_mhz, mode), e.g. a favourite
+#                 station or a ham net. Modes: am | lsb | usb | cw.
+#
+# max_active_channels: 1 records one station at a time, like a radio: it
+# picks the strongest active slot and stays on it until it fades, rather
+# than chopping between every station in the band. Continuous audio is
+# saved in 30 s files (max_segment_s in devices.yaml) and plays at low
+# priority — marine/railroad calls interrupt it.
+
+device: ham
+default_mode: am
+max_active_channels: 1
+day_sun_elevation_deg: 0.0
+
+# Activity detector (src/scanner/fft_engine.py). Broadcasts run for hours and
+# fade in and out, so: hold a station's noise floor once it's 6 dB up
+# (hold_db), and never absorb it into the floor (hold_alpha 0). VHF keeps the
+# defaults, which absorb a constant carrier after about a minute.
+detector:
+  hold_db: 6.0
+  hold_alpha: 0.0
+
+bands:
+  - when: day
+    name: "22m+19m"
+    center_mhz: 14.55          # window ~13.63–15.47 MHz
+    scan_ranges:
+      - label: "22m"
+        from_mhz: 13.635
+        to_mhz: 13.870
+        step_khz: 5
+      - label: "19m"
+        from_mhz: 15.100
+        to_mhz: 15.465
+        step_khz: 5
+    # Strongest signal in the 2026-11-06 afternoon sweep was 13.870 MHz
+    # (+16 dB) — covered by the 22m range above. WWV 15.000 MHz is in this
+    # window too; left out so a time signal doesn't win over broadcasts.
+
+  - when: night
+    name: "49m+41m"
+    center_mhz: 6.75           # window ~5.83–7.67 MHz
+    scan_ranges:
+      - label: "49m"
+        from_mhz: 5.900
+        to_mhz: 6.200
+        step_khz: 5
+      - label: "41m"
+        from_mhz: 7.300        # 7.200–7.300 is ham phone (LSB) in the Americas
+        to_mhz: 7.600
+        step_khz: 5
+    # To also catch 40m ham voice at night, add fixed LSB channels, e.g.:
+    # channels:
+    #   - name: "40m phone 7.200"
+    #     freq_mhz: 7.200
+    #     mode: lsb

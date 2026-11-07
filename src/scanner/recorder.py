@@ -2,9 +2,16 @@
 Per-device recording loop.
 
 Monitors all channels on one dongle simultaneously via wideband FFT.
-Each active channel is demodulated independently. When a transmission ends
+Each active channel is demodulated independently — NFM for VHF voice, or
+AM/USB/LSB/CW for HF (see linear_demod.py). When a transmission ends
 (TAIL → IDLE), the accumulated audio is written to a WAV file whose name
-encodes all metadata (timestamp, device, channel, frequency).
+encodes all metadata (timestamp, device, channel, frequency). Transmissions
+longer than max_segment_s (e.g. a continuous shortwave broadcast) are split
+into consecutive files so playback isn't held up until the station signs off.
+
+Channel frequencies are always the frequency on the air ("dial" frequency).
+With an upconverter (Ham It Up: HF + 125 MHz), lo_offset_hz is added only
+when tuning the dongle.
 """
 import logging
 import threading
@@ -15,9 +22,11 @@ from pathlib import Path
 
 import numpy as np
 
-from src.scanner.channel_state import ChannelState
+from src.scanner.channel_state import ChannelState, State
+from src.scanner.dsp import Mixer
 from src.scanner.fft_engine import Channel, FFTEngine
 from src.scanner.iq_source import IQSource
+from src.scanner.linear_demod import LINEAR_MODES, LinearDemodulator
 from src.scanner.nfm_demod import AUDIO_RATE, NFMDemodulator
 
 log = logging.getLogger(__name__)
@@ -30,6 +39,15 @@ def _shift_to_baseband(iq: np.ndarray, offset_hz: float, sample_rate: float) -> 
     return iq * np.exp(-2j * np.pi * offset_hz / sample_rate * n).astype(np.complex64)
 
 
+def make_demodulator(mode: str, sample_rate: float):
+    mode = mode.lower()
+    if mode == "nfm":
+        return NFMDemodulator(sample_rate)
+    if mode in LINEAR_MODES:
+        return LinearDemodulator(sample_rate, mode)
+    raise ValueError(f"Unknown mode {mode!r}")
+
+
 class Recorder:
     """
     Captures all channel activity on one SDR dongle, writing a WAV file
@@ -39,16 +57,29 @@ class Recorder:
     def __init__(self, dev_id: str, serial: str, center_freq: float,
                  sample_rate: float, channels: list[Channel],
                  recordings_dir: str | Path,
-                 gain: float | None = None, ppm: int = 0):
+                 gain: float | None = None, ppm: int = 0,
+                 lo_offset_hz: float = 0.0,
+                 max_segment_s: float | None = None,
+                 max_active_channels: int | None = None,
+                 detector: dict | None = None):
         self._dev_id = dev_id
         self._center_freq = center_freq
         self._sample_rate = sample_rate
         self._channels = channels
         self._recordings_dir = Path(recordings_dir)
+        self._max_segment_samples = (int(max_segment_s * AUDIO_RATE)
+                                     if max_segment_s else None)
+        # Record at most this many channels at once. A channel already being
+        # recorded keeps its slot until it goes idle; free slots go to the
+        # highest-SNR active channels. 1 = "radio" behaviour for broadcast:
+        # stay on one station rather than chopping between all of them.
+        self._max_active = max_active_channels
 
-        self._source = IQSource(serial, center_freq, sample_rate, gain, ppm)
-        self._fft = FFTEngine(center_freq, sample_rate, channels)
-        self._demods = [NFMDemodulator(sample_rate) for _ in channels]
+        self._source = IQSource(serial, center_freq + lo_offset_hz, sample_rate, gain, ppm)
+        self._fft = FFTEngine(center_freq, sample_rate, channels, **(detector or {}))
+        self._demods = [make_demodulator(ch.mode, sample_rate) for ch in channels]
+        self._mixers = [Mixer(ch.freq_hz - center_freq, sample_rate) for ch in channels]
+        self._buffered = [0] * len(channels)
         self._states = [ChannelState(i, ch.name) for i, ch in enumerate(channels)]
 
         self._buffers: list[list[np.ndarray]] = [[] for _ in channels]
@@ -89,22 +120,37 @@ class Recorder:
             now = time.monotonic()
             any_active = False
 
-            for idx, ch in enumerate(self._channels):
-                was_receiving = self._states[idx].is_receiving
-                changed = self._states[idx].update(idx in active_set, now)
-                is_receiving = self._states[idx].is_receiving
+            changed_idx = set()
+            for idx in range(len(self._channels)):
+                if self._states[idx].update(idx in active_set, now):
+                    changed_idx.add(idx)
+            recording = self._select_recording()
 
-                if changed:
-                    log.info("[%s] %-30s  %s", self._dev_id, ch.name,
-                             self._states[idx].state.value.upper())
+            for idx, ch in enumerate(self._channels):
+                was_receiving = self._tx_start[idx] is not None
+                is_receiving = idx in recording
+
+                if idx in changed_idx and (is_receiving or was_receiving):
+                    # Start/end at INFO; ACTIVE↔TAIL flicker (a fading HF
+                    # station, a choppy mobile) only at DEBUG.
+                    st = self._states[idx].state
+                    starting = st is State.ACTIVE and not was_receiving
+                    level = logging.INFO if (starting or st is State.IDLE) else logging.DEBUG
+                    log.log(level, "[%s] %-30s  %s", self._dev_id, ch.name, st.value.upper())
 
                 if is_receiving:
                     any_active = True
                     if self._tx_start[idx] is None:
                         self._tx_start[idx] = time.time()
-                    offset = ch.freq_hz - self._center_freq
-                    bb = _shift_to_baseband(iq, offset, self._sample_rate)
-                    self._buffers[idx].append(self._demods[idx].demodulate(bb))
+                    bb = self._mixers[idx].shift(iq)
+                    audio = self._demods[idx].demodulate(bb)
+                    self._buffers[idx].append(audio)
+                    self._buffered[idx] += len(audio)
+                    if (self._max_segment_samples
+                            and self._buffered[idx] >= self._max_segment_samples):
+                        # Split a long transmission; keep demod state so the
+                        # next segment continues seamlessly.
+                        self._flush(idx, ch, reset_demod=False)
                 elif was_receiving:
                     self._flush(idx, ch)
 
@@ -119,7 +165,21 @@ class Recorder:
 
         log.info("[%s] Recorder stopped", self._dev_id)
 
-    def _flush(self, idx: int, ch: Channel) -> None:
+    def _select_recording(self) -> set[int]:
+        receiving = [i for i, st in enumerate(self._states) if st.is_receiving]
+        if self._max_active is None:
+            return set(receiving)
+        # Channels already recording keep their slot through TAIL; a free slot
+        # only goes to a channel whose signal is present now (ACTIVE) — one
+        # already in TAIL would just record a fragment of silence.
+        keep = [i for i in receiving if self._tx_start[i] is not None][: self._max_active]
+        snrs = self._fft.channel_snrs()
+        new = sorted((i for i in receiving
+                      if i not in keep and self._states[i].state is State.ACTIVE),
+                     key=lambda i: -snrs[i])
+        return set(keep + new[: self._max_active - len(keep)])
+
+    def _flush(self, idx: int, ch: Channel, reset_demod: bool = True) -> None:
         if not self._buffers[idx]:
             return
 
@@ -131,7 +191,7 @@ class Recorder:
         day_dir.mkdir(parents=True, exist_ok=True)
 
         safe_name = ch.name.replace("/", "_").replace(" ", "_")
-        freq_khz = int(ch.freq_hz / 1000)
+        freq_khz = int(round(ch.freq_hz / 1000))
         fname = (f"{now.strftime('%Y%m%d_%H%M%S')}"
                  f"_{self._dev_id}_{safe_name}_{freq_khz}kHz.wav")
 
@@ -150,5 +210,7 @@ class Recorder:
         log.info("[%s] Saved %.1fs → %s", self._dev_id, duration_s, fname)
 
         self._buffers[idx] = []
-        self._tx_start[idx] = None
-        self._demods[idx].reset()
+        self._buffered[idx] = 0
+        if reset_demod:
+            self._tx_start[idx] = None
+            self._demods[idx].reset()

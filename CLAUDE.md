@@ -10,7 +10,7 @@ Multi-channel Software Defined Radio scanner running on an Orange Pi Max V1.1 (R
 | RTL-SDR.COM V3 #2 (R820T2) | Marine VHF voice | Connected |
 | NooElec NESDR SMArt v5 (R820T2) | ADS-B (1090 MHz), fed to FlightAware/FR24/ADS-B Exchange | Connected |
 | NooElec NESDR SMArTee v5 (bias-tee) | AIS ship tracking | Connected — serial/antenna feed pending |
-| NooElec NESDR SMArt XTR HF Bundle | HAM HF (SSB/CW) | Not yet purchased |
+| NooElec NESDR SMArt XTR + Ham It Up | HAM/shortwave HF, receive only (AM/SSB/CW) | Connected — long wire via unun, no counterpoise yet |
 | Uniden SDS200 (standalone scanner) | P25 trunking — Pierce County fire/police | Planned purchase |
 | HDMI monitor (primary display) | Full-screen ADS-B+AIS live map kiosk | Built — `src/display/adsb_map.py`, systemd auto-start |
 
