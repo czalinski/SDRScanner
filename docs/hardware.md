@@ -18,6 +18,18 @@ small passive heatsink and was retired; use the larger passive heatsink
 | Login | `zalinskic@192.168.68.70` (DHCP) |
 | Desktop | GDM auto-login, **X11** (`WaylandEnable=false` — the kiosk needs it) |
 
+### USB ports — OTG port forced to host mode
+
+Of the two blue USB 3.0 ports, one is on `usbdrd3_1` (host) and the other on
+`usbdrd3_0`, which stock Armbian leaves in OTG mode with no role switch — it
+sits in *device* mode (for flashing from a PC), so a hub plugged in there is
+never enumerated. `config/boot/usb0-host.dts` is a user overlay that sets it to
+host (`sudo armbian-add-overlay config/boot/usb0-host.dts`, then reboot;
+`/boot/armbianEnv.txt` gets `user_overlays=usb0-host`). The dongle hub is on
+that port. On 2026-11-07 a hub on the other blue port hung mid-enumeration and
+froze anything reading the USB device list (`lsusb`, SoapySDR enumeration)
+until reboot.
+
 ### Storage
 
 The OS stays on the eMMC (cheap, swappable — a spare module is the recovery

@@ -1,0 +1,18 @@
+// Orange Pi 5 Max: put the OTG USB 3.0 port (usbdrd3_0, fc000000) in host mode.
+// Stock Armbian leaves it in OTG with no role switch, so it sits in *device*
+// mode (for flashing from a PC) and a hub plugged into that blue port is
+// never seen. Install (needs a reboot):
+//   sudo apt install device-tree-compiler
+//   sudo armbian-add-overlay config/boot/usb0-host.dts
+// Check: ls /sys/kernel/debug/usb/fc000000.usb/mode → "host" (as root, debugfs).
+/dts-v1/;
+/plugin/;
+/ {
+	compatible = "rockchip,rk3588";
+	fragment@0 {
+		target-path = "/usbdrd3_0/usb@fc000000";
+		__overlay__ {
+			dr_mode = "host";
+		};
+	};
+};
