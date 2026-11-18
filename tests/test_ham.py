@@ -174,6 +174,20 @@ for band in cfg["bands"]:
 out = _check_window("ham", 7.40e6, FS, [Channel("far", 14.2e6, mode="usb")])
 assert out == []
 
+# VHF configs: no duplicate frequencies (each would record/play twice), and
+# the configured centre keeps every channel clear of the DC spike.
+from src.scanner.config_loader import load_devices
+for dev in load_devices()["devices"]:
+    if dev.get("channel_config") in ("marine", "railroad"):
+        chans = _build_channels(dev["channel_config"])
+        kept = _check_window(dev["id"], dev["center_mhz"] * 1e6, dev["sample_rate"], chans)
+        assert len(kept) == len(chans), f"{dev['id']}: duplicate or out-of-window channel"
+        assert all(abs(c.freq_hz - dev["center_mhz"] * 1e6) >= 25e3 for c in kept), \
+            f"{dev['id']}: channel on DC spike"
+        print(f"  {dev['id']}: {len(kept)} channels, no duplicates, clear of DC spike: OK")
+dup = _check_window("x", 161e6, FS, [Channel("a", 160.47e6), Channel("b", 160.47e6)])
+assert [c.name for c in dup] == ["a"]
+
 # ── Sun elevation sanity (Tacoma 47.27 N, 122.44 W) ──────────────────────────
 from datetime import datetime, timezone
 LAT, LON = 47.2672, -122.44
@@ -261,6 +275,7 @@ with tempfile.TemporaryDirectory() as tmp:
     sig = lambda t: 0.05 * np.exp(2j * np.pi * (7.850e6 - 7.40e6) * t)
     for x in blocks(sig, 30):                 # ~0.48 s → 2 full 0.2 s segments
         rec._buffers[0].append(rec._demods[0].demodulate(rec._mixers[0].shift(x)))
+        rec._gates[0].append(True)            # HF demod has no noise squelch
         rec._buffered[0] += 768
         if rec._buffered[0] >= rec._max_segment_samples:
             rec._flush(0, ch, reset_demod=False)

@@ -20,7 +20,7 @@ status across Marine/Railroad/HAM (not built yet — see `TODO.md`).
 P25 (fire/police) runs on a standalone Uniden SDS200, not the RTL-SDR/Orange
 Pi stack — see `docs/hardware.md` and `docs/antennas.md` §3.
 
-Target host: `zalinskic@192.168.68.70` — second Orange Pi 5 Max, Armbian (noble) on eMMC, repo at `~/SDRScanner` (deployed by rsync, not a git checkout). The first board (`czalinski@`) was retired 2026-11-07 after overheating.
+Target host: `zalinskic@192.168.68.97` (DHCP — was `.70` until 2026-11-18; if unreachable, scan the /22 for SSH) — second Orange Pi 5 Max, Armbian (noble) on eMMC, repo at `~/SDRScanner` (deployed by rsync, not a git checkout). The first board (`czalinski@`) was retired 2026-11-07 after overheating.
 
 ## Project Layout
 

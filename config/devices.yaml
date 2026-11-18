@@ -21,7 +21,9 @@ devices:
     role: "Marine VHF voice"
     antenna: "J-pole #3 (built, tested 2026-11-06 — docs/antennas.md §7)"
     sample_rate: 2048000
-    center_mhz: 156.800         # 2 MHz window covers 155.8–157.8 MHz (priority channels)
+    center_mhz: 156.750         # 2 MHz window covers 155.8–157.7 MHz (priority channels).
+                                 # Midway between Ch 14 and Ch 16, 50 kHz from each: the
+                                 # dongle's DC spike sat right on Ch 16 at 156.800.
     channel_config: marine
     playback_priority: 0         # lower = more important; interrupts ham
     ppm: 0

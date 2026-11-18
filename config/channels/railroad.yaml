@@ -11,7 +11,7 @@ channels:
   - name: "BNSF Road Ch 7"
     freq_mhz: 160.470
     priority: true
-    notes: "Primary BNSF road channel — Tacoma area"
+    notes: "Primary BNSF road channel — Tacoma area; Sounder commuter rail too"
 
   - name: "BNSF Road Ch 8"
     freq_mhz: 160.530
@@ -57,11 +57,9 @@ channels:
     freq_mhz: 161.520
     priority: false
 
-  # Sound Transit / Sounder commuter rail (uses BNSF trackage)
-  - name: "Sounder Operations"
-    freq_mhz: 160.470
-    priority: false
-    notes: "Sounder shares BNSF road frequencies"
+  # Sound Transit / Sounder commuter rail (uses BNSF trackage) talks on the
+  # BNSF road channels above (160.470) — no separate entry, which would
+  # record/play every transmission twice.
 
   # Union Pacific (shares some Tacoma terminal area)
   - name: "UP Road Ch 1"

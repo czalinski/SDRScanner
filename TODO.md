@@ -46,7 +46,7 @@ Marine/Railroad/HAM (not built yet — see "Declared but not built" below).
 - [x] **AIS antenna decided**: a dedicated third J-pole (161.975/162.025 MHz,
       see `docs/antennas.md` §5), not a splitter off the marine antenna —
       avoids splitter loss. Not yet built.
-- [ ] Build the three J-poles — railroad (161 MHz), marine (159 MHz), AIS
+- [x] Build the three J-poles (done; #3 marine, #2 AIS, #1 railroad) — — railroad (161 MHz), marine (159 MHz), AIS
       (162 MHz). Equipment already ordered for railroad/marine; AIS J-pole
       dimensions are in `docs/antennas.md` §5 (very close to the other two,
       consider building as a batch). This is the only remaining blocker for
@@ -60,7 +60,8 @@ Marine/Railroad/HAM (not built yet — see "Declared but not built" below).
 - [ ] Compare Ham It Up "UP" vs "UP+Amp" with a sweep — keep the amp only
       if signals rise more than the noise floor does.
 - [ ] Counterpoise/ground for the long-wire unun.
-- [ ] Build/mount ADS-B antenna (spec: `docs/antennas.md` §4)
+- [x] ADS-B antenna: collinear built and connected (2026-11-06 test: ~4x
+      the messages of the stock dipole).
 - [ ] Spec + build HAM antenna once band(s) of interest are chosen
       (`docs/antennas.md` §6 — may not be needed at all if the XTR bundle's
       included antennas cover it)
@@ -72,7 +73,8 @@ Marine/Railroad/HAM (not built yet — see "Declared but not built" below).
 ## Software — ADS-B / AIS
 
 - [x] Live map built and kiosk-wired (see "Resolved this session").
-- [ ] One-time feeder account setup (piaware/fr24feed/adsbx-feed need
+- [ ] **Feeders not installed on the current Pi** (2026-11-18: no piaware/
+      fr24feed/adsbx units present). Needs sudo + accounts. One-time setup (piaware/fr24feed/adsbx-feed need
       accounts before they do anything — see `start_scanner.sh` comments):
       - piaware: `sudo piaware-config -force -latitude <lat> -longitude <lon>`,
         then claim at flightaware.com/adsb/piaware/claim
@@ -83,17 +85,16 @@ Marine/Railroad/HAM (not built yet — see "Declared but not built" below).
 - [ ] `receiver_alt_m` in `config/channels/adsb.yaml` is still a placeholder
       (50m) — update with actual antenna height MSL once mounted; lat/lon
       are already exact.
-- [ ] Test AIS against real RF once the dongle/antenna are wired up —
-      software side (decoder, tracker, map rendering) is built and unit
-      tested against sample data, but unverified against actual Commencement
-      Bay traffic.
+- [x] AIS verified on real RF (2026-11-18): 20–40 vessels on the map.
+      A corrupt position (lat −107) crash-looped the kiosk — now filtered.
 
 ## Software — railroad/marine/HAM audio + playback
 
-- [ ] Fresh end-to-end test of railroad + marine running concurrently with
-      the playback queue now that project scope has changed (the pieces —
-      FFT scan, NFM demod, recorder, playback queue — exist per git
-      history, but haven't been retested since the P25 pivot)
+- [x] End-to-end railroad + marine + HAM concurrently with playback,
+      verified 2026-11-18 after a power reset. Audio → monitor speaker
+      (HDMI0). NFM noise squelch trims the ~3 s hiss tail off each file.
+      Duplicate same-frequency channels removed (they double-played and
+      backed up the queue); marine centre moved off Ch 16's DC spike.
 - [x] **Device-level playback priority with preemption** —
       `playback_priority` in devices.yaml (marine 0, railroad 1, ham 5); a
       recording from a more important device interrupts the one playing, so

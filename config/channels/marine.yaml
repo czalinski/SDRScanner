@@ -81,13 +81,9 @@ channels:
     freq_mhz: 156.925
     priority: false
 
-  # --- Puget Sound Ferry (WSF) ---
-  - name: "WSF Operations"
-    freq_mhz: 156.650
-    priority: false
-    notes: "Washington State Ferries — Ch 13 bridge-to-bridge"
-
+  # --- Bridge-to-bridge (also Washington State Ferries operations) ---
+  # One entry per frequency: a duplicate would record/play everything twice.
   - name: "Ch 13 — Bridge-to-Bridge"
     freq_mhz: 156.650
     priority: false
-    notes: "Navigation safety, 1W only"
+    notes: "Navigation safety, 1W only; WSF ferries also work here"

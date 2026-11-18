@@ -48,10 +48,19 @@ def _receiver_location() -> tuple[float, float]:
 
 def _check_window(dev_id: str, center_hz: float, sample_rate: float,
                   channels: list[Channel]) -> list[Channel]:
-    """Drop channels outside the dongle's usable window; warn on the DC spike."""
+    """Drop channels outside the dongle's usable window and duplicates of an
+    earlier channel; warn on the DC spike."""
     usable = 0.45 * sample_rate
     kept = []
+    seen: dict[tuple[float, str], str] = {}
     for ch in channels:
+        key = (round(ch.freq_hz), ch.mode)
+        if key in seen:
+            # Same frequency twice would record and play every transmission twice
+            log.warning("[%s] %s duplicates %s (%.3f MHz) — skipped",
+                        dev_id, ch.name, seen[key], ch.freq_hz / 1e6)
+            continue
+        seen[key] = ch.name
         off = ch.freq_hz - center_hz
         if abs(off) > usable:
             log.warning("[%s] %s (%.3f MHz) is outside the %.3f MHz ±%.0f kHz window — skipped",
