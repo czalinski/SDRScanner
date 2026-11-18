@@ -5,6 +5,9 @@ AIS listener's ships.json (see src/display/ais_listener.py, fed by
 scripts/run_rtl_ais.sh), rendering both as heading-oriented markers over a
 cached OpenStreetMap background (src/display/tile_cache.py). Aircraft and
 ships are color-coded separately since they otherwise look identical.
+
+The right PANEL_FRACTION of the screen is the audio panel
+(src/display/audio_panel.py): what the scanner is playing and has played.
 """
 import json
 import logging
@@ -15,6 +18,7 @@ from pathlib import Path
 
 import pygame
 
+from src.display.audio_panel import PANEL_FRACTION, AudioPanel, load_history
 from src.display.tile_cache import MapView, zoom_for_radius_miles
 from src.scanner.config_loader import load_channel_config
 
@@ -191,15 +195,20 @@ def main() -> None:
     font = pygame.font.SysFont("monospace", 14)
     attrib_font = pygame.font.SysFont("sans", 12)
 
+    # Map on the left, audio panel on the right
+    panel_w = int(screen_w * PANEL_FRACTION)
+    map_w = screen_w - panel_w
+    panel = AudioPanel(pygame.Rect(map_w, 0, panel_w, screen_h), screen_h)
+
     zoom = zoom_for_radius_miles(receiver_lat, VISIBLE_RADIUS_MILES, screen_h)
-    log.info("Building map background (zoom=%d, ~%dmi radius, center=%.6f,%.6f)...",
-              zoom, VISIBLE_RADIUS_MILES, receiver_lat, receiver_lon)
-    view = MapView(receiver_lat, receiver_lon, zoom, screen_w, screen_h)
+    log.info("Building map background (zoom=%d, ~%dmi radius, center=%.6f,%.6f, %dpx wide)...",
+              zoom, VISIBLE_RADIUS_MILES, receiver_lat, receiver_lon, map_w)
+    view = MapView(receiver_lat, receiver_lon, zoom, map_w, screen_h)
     try:
         background = view.build_background()
     except Exception:
         log.exception("Failed to build map background — falling back to solid color")
-        background = pygame.Surface((screen_w, screen_h))
+        background = pygame.Surface((map_w, screen_h))
         background.fill(BG_FALLBACK_COLOR)
     background = background.convert()      # display pixel format → cheap blit
     log.info("Background ready. Entering main loop.")
@@ -209,6 +218,7 @@ def main() -> None:
     last_fullscreen_reassert = time.monotonic()
     aircraft: list[dict] = []
     ships: list[dict] = []
+    history: list[dict] = []
     dirty = True
 
     running = True
@@ -225,6 +235,7 @@ def main() -> None:
         if now - last_poll >= POLL_INTERVAL_S:
             aircraft = load_aircraft()
             ships = load_ships()
+            history = load_history()
             last_poll = now
             dirty = True
 
@@ -250,6 +261,7 @@ def main() -> None:
         screen.blit(count_text, (10, 10))
         attrib_text = attrib_font.render(ATTRIBUTION, True, (40, 40, 40))
         screen.blit(attrib_text, (10, screen_h - 20))
+        panel.draw(screen, history)    # last: covers labels running off the map edge
 
         pygame.display.flip()
         clock.tick(LOOP_FPS)

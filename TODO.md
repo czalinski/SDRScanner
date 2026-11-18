@@ -37,6 +37,17 @@ Marine/Railroad/HAM (not built yet — see "Declared but not built" below).
       upconverter, since the SMArTee v5 originally earmarked for HAM is now
       needed for AIS instead. XTR bundle not yet purchased.
 
+## ⚠ Needs you (don't forget)
+
+- [ ] **1. ADS-B feeders** — piaware / fr24feed / adsbx-feed are not installed
+      on the current Pi. Needs your sudo password + FlightAware and FR24
+      accounts (details under "Software — ADS-B / AIS" below).
+- [ ] **2. ADS-B antenna height** — `receiver_alt_m` in
+      `config/channels/adsb.yaml` is a 50 m placeholder; set the collinear's
+      real height above sea level (needed for accurate MLAT when feeding).
+- [ ] **3. Fixed IP for the Pi** — add a DHCP reservation in the router for
+      the Pi (currently `192.168.68.97`; it moved from `.70` on 2026-11-18).
+
 ## Hardware
 
 - [x] ADS-B/AIS dongles swapped 2026-11-06 (bias-tee vs DC-shorted J-pole):

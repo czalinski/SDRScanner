@@ -11,6 +11,7 @@ import signal
 import sys
 import threading
 import time
+from pathlib import Path
 
 from src.scanner.band_schedule import BandSwitcher, band_channels
 from src.scanner.config_loader import load_channel_config, load_devices, load_storage
@@ -30,6 +31,8 @@ log = logging.getLogger("scanner.main")
 
 MAX_LATENCY_S = 30.0
 BAND_CHECK_S = 60.0       # how often band-scheduled devices check day/night
+# What has played, for the kiosk audio panel (src/display/adsb_map.py)
+PLAYBACK_HISTORY = Path(__file__).resolve().parents[2] / "run" / "playback.json"
 
 
 def _build_channels(channel_config: str) -> list[Channel]:
@@ -157,7 +160,7 @@ def main() -> None:
     priorities = {d["id"]: int(d["playback_priority"])
                   for d in all_devices if d.get("playback_priority") is not None}
     pb = PlaybackQueue(recordings_dir=RECORDINGS_DIR, max_latency_s=MAX_LATENCY_S,
-                       priorities=priorities)
+                       priorities=priorities, history_path=PLAYBACK_HISTORY)
 
     pb.start()
     for rec in recorders:

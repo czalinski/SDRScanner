@@ -12,10 +12,11 @@ Multi-channel Software Defined Radio scanner running on an Orange Pi Max V1.1 (R
 | NooElec NESDR SMArt v5, serial `RTLSDR_AIS` | AIS ship tracking — J-pole #2 (DC short: never on a bias-tee dongle) | Connected |
 | NooElec NESDR SMArt XTR + Ham It Up | HAM/shortwave HF, receive only (AM/SSB/CW) | Connected — long wire via unun, no counterpoise yet |
 | Uniden SDS200 (standalone scanner) | P25 trunking — Pierce County fire/police | Planned purchase |
-| HDMI monitor (primary display) | Full-screen ADS-B+AIS live map kiosk | Built — `src/display/adsb_map.py`, systemd auto-start |
+| HDMI monitor (primary display) | Full-screen kiosk: ADS-B+AIS live map (left 80%) + audio panel of what played (right 20%); its speaker is the scanner audio output | Built — `src/display/adsb_map.py` + `audio_panel.py`, systemd auto-start |
 
-Long-term: a second monitor is also planned, showing live audio-output
-status across Marine/Railroad/HAM (not built yet — see `TODO.md`).
+Audio-output status (what Marine/Railroad/HAM played) is the right-hand
+panel of the kiosk, fed by `run/playback.json` from the playback queue. A
+second monitor was the earlier plan for this — see `TODO.md`.
 
 P25 (fire/police) runs on a standalone Uniden SDS200, not the RTL-SDR/Orange
 Pi stack — see `docs/hardware.md` and `docs/antennas.md` §3.

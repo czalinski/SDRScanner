@@ -11,19 +11,27 @@ marine/railroad calls cut in over HAM/shortwave, which is continuous
 background audio (split into ~30 s segments by the Recorder). Priorities come
 from `playback_priority` in config/devices.yaml; the device id is the third
 "_"-separated field of the recording filename (see Recorder._flush).
+
+If history_path is given, the last HISTORY_LEN clips played (newest first,
+with the one playing now marked) are written there as JSON after every change
+— the kiosk map (src/display/adsb_map.py) shows it as the audio panel.
 """
 import heapq
 import itertools
+import json
 import logging
 import subprocess
 import threading
 import time
+import wave
+from collections import deque
 from pathlib import Path
 
 log = logging.getLogger(__name__)
 
 DEFAULT_PRIORITY = 1
 _POLL_S = 0.2
+HISTORY_LEN = 50
 
 
 def device_id_from_filename(name: str) -> str:
@@ -31,10 +39,34 @@ def device_id_from_filename(name: str) -> str:
     return parts[2] if len(parts) > 2 else ""
 
 
+def describe_recording(name: str) -> dict:
+    """Device, channel name and frequency from a recording filename
+    (YYYYMMDD_HHMMSS_<device>_<channel name>_<freq>kHz.wav — Recorder._flush
+    turned the channel name's spaces into underscores)."""
+    parts = Path(name).stem.split("_")
+    freq = parts[-1].removesuffix("kHz") if len(parts) >= 5 else ""
+    return {
+        "device": device_id_from_filename(name),
+        "channel": " ".join(parts[3:-1]) if len(parts) >= 5 else Path(name).stem,
+        "freq_khz": int(freq) if freq.isdigit() else None,
+    }
+
+
+def _wav_duration_s(path: Path) -> float:
+    try:
+        with wave.open(str(path)) as w:
+            return w.getnframes() / float(w.getframerate())
+    except (OSError, EOFError, wave.Error):
+        return 0.0
+
+
 class PlaybackQueue:
     def __init__(self, recordings_dir: str | Path, max_latency_s: float = 30.0,
-                 priorities: dict[str, int] | None = None):
+                 priorities: dict[str, int] | None = None,
+                 history_path: str | Path | None = None):
         self._dir = Path(recordings_dir)
+        self._history_path = Path(history_path) if history_path else None
+        self._history: deque[dict] = deque(maxlen=HISTORY_LEN)
         self._max_latency = max_latency_s
         self._priorities = priorities or {}
         self._heap: list[tuple[int, float, int, Path]] = []
@@ -101,6 +133,17 @@ class PlaybackQueue:
             prio, _, _, path = heapq.heappop(self._heap)
             return prio, path
 
+    def _write_history(self) -> None:
+        if not self._history_path:
+            return
+        try:
+            self._history_path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = self._history_path.with_suffix(".tmp")
+            tmp.write_text(json.dumps({"now": time.time(), "history": list(self._history)}))
+            tmp.rename(self._history_path)
+        except OSError as e:
+            log.warning("Could not write playback history: %s", e)
+
     def _more_important_waiting(self, prio: int) -> bool:
         with self._cv:
             return bool(self._heap) and self._heap[0][0] < prio
@@ -123,6 +166,10 @@ class PlaybackQueue:
                 continue
 
             log.info("Playing: %s", path.name)
+            entry = {**describe_recording(path.name), "started": time.time(),
+                     "duration_s": round(_wav_duration_s(path), 1), "status": "playing"}
+            self._history.appendleft(entry)
+            self._write_history()
             try:
                 proc = subprocess.Popen(["aplay", "-q", str(path)])
             except FileNotFoundError:
@@ -131,10 +178,12 @@ class PlaybackQueue:
                 return
 
             started = time.monotonic()
+            outcome = "played"
             while proc.poll() is None:
                 if self._stop.is_set() or self._more_important_waiting(prio):
                     if not self._stop.is_set():
                         log.info("Interrupted %s for higher-priority audio", path.name)
+                    outcome = "interrupted"
                     proc.terminate()
                     break
                 if time.monotonic() - started > 300:
@@ -146,3 +195,5 @@ class PlaybackQueue:
                 proc.wait(timeout=2.0)
             except subprocess.TimeoutExpired:
                 proc.kill()
+            entry["status"] = outcome
+            self._write_history()
