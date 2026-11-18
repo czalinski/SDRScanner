@@ -30,7 +30,9 @@ _FALLBACK_COLOR = (40, 40, 45)
 
 def _lat_lon_to_tile_xy(lat: float, lon: float, zoom: int) -> tuple[float, float]:
     """Web Mercator projection: lat/lon -> fractional tile x/y at given zoom."""
-    lat_rad = math.radians(lat)
+    # Clamp to Web Mercator's valid range: out-of-range input (e.g. a corrupt
+    # AIS position) would otherwise raise a math domain error and crash the kiosk.
+    lat_rad = math.radians(max(-85.05112878, min(85.05112878, lat)))
     n = 2.0 ** zoom
     x = (lon + 180.0) / 360.0 * n
     y = (1.0 - math.log(math.tan(lat_rad) + 1.0 / math.cos(lat_rad)) / math.pi) / 2.0 * n

@@ -45,6 +45,8 @@ def _write_ships(tracker: AISTracker) -> None:
     for t in tracker.tracks:
         if t.lat is None or t.lon is None:
             continue  # static/voyage-only messages — no position yet, nothing to plot
+        if not (-90.0 <= t.lat <= 90.0 and -180.0 <= t.lon <= 180.0):
+            continue  # 91/181 = "not available", or a corrupted decode (seen: -107/-215)
 
         ships.append({
             "mmsi": t.mmsi,

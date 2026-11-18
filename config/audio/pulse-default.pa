@@ -1,0 +1,6 @@
+.include /etc/pulse/default.pa
+# SDRScanner: scanner audio goes to the monitor (HDMI0), not the 3.5mm jack.
+.nofail
+set-default-sink alsa_output.platform-hdmi0-sound.stereo-fallback
+set-sink-mute alsa_output.platform-hdmi0-sound.stereo-fallback 0
+.fail

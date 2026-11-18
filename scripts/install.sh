@@ -152,6 +152,9 @@ install_unit adsb-map.service "$HOME/.config/systemd/user"
 install_unit sdr-scanner.service "$HOME/.config/systemd/user"
 systemctl --user daemon-reload
 systemctl --user enable adsb-map.service sdr-scanner.service
+# Scanner audio → monitor speaker (HDMI0) instead of the 3.5mm jack
+mkdir -p "$HOME/.config/pulse"
+cp "$REPO_DIR/config/audio/pulse-default.pa" "$HOME/.config/pulse/default.pa"
 # Start the user's services (sdr-scanner) at boot, not only at login
 sudo loginctl enable-linger "$USER"
 log "Kiosk services installed. Start now with:"
