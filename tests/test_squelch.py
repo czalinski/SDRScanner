@@ -68,6 +68,24 @@ def test_mid_gap_silenced_not_cut():
     assert not out[768:3 * 768].any()
 
 
+def test_short_clip_discarded():
+    import tempfile
+    from pathlib import Path
+    from src.scanner.fft_engine import Channel
+    from src.scanner.recorder import Recorder
+    with tempfile.TemporaryDirectory() as tmp:
+        ch = Channel("Ch 16", 156.8e6)
+        rec = Recorder("marine", "FAKE", 156.75e6, FS, [ch], tmp)
+        for seconds, n_files in ((0.5, 0), (1.5, 1)):
+            n = int(seconds * AUDIO_RATE / 768)
+            rec._buffers[0] = [np.full(768, 0.1, np.float32)] * n
+            rec._gates[0] = [True] * n
+            rec._buffered[0] = 768 * n
+            rec._flush(0, ch)
+            got = len(list(Path(tmp).rglob("*.wav")))
+            assert got == n_files, (seconds, got)
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

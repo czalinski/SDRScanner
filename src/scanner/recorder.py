@@ -33,6 +33,10 @@ log = logging.getLogger(__name__)
 
 _HEARTBEAT_S = 30.0
 _FADE_S = 0.010   # ramp at each squelch edge so gating doesn't click
+# Shorter transmissions (after the noise squelch trims them) are discarded:
+# key-up clicks and data bursts, not speech. A segment cut from a continuing
+# transmission (max_segment_s) is always kept.
+MIN_CLIP_S = 1.0
 
 
 def _apply_squelch(chunks: list[np.ndarray], gate: list[bool]) -> np.ndarray | None:
@@ -228,6 +232,10 @@ class Recorder:
             log.info("[%s] Discarded %.1fs on %s — noise only", self._dev_id, raw_s, ch.name)
             return
         duration_s = len(audio) / AUDIO_RATE
+        if reset_demod and duration_s < MIN_CLIP_S:
+            log.info("[%s] Discarded %.1fs on %s — shorter than %.0fs",
+                     self._dev_id, duration_s, ch.name, MIN_CLIP_S)
+            return
 
         now = datetime.now()
         day_dir = self._recordings_dir / now.strftime("%Y%m%d")
