@@ -32,6 +32,36 @@ from src.scanner.nfm_demod import AUDIO_RATE, NFMDemodulator
 log = logging.getLogger(__name__)
 
 _HEARTBEAT_S = 30.0
+_FADE_S = 0.010   # ramp at each squelch edge so gating doesn't click
+
+
+def _apply_squelch(chunks: list[np.ndarray], gate: list[bool]) -> np.ndarray | None:
+    """
+    Silence the noise-only blocks of a transmission and trim them off both
+    ends. Returns None if no block had a usable signal (false trigger).
+    Squelch-closed gaps inside the transmission become silence rather than
+    being cut, so the timing of an exchange is preserved.
+    """
+    if not any(gate):
+        return None
+    first = gate.index(True)
+    last = len(gate) - 1 - gate[::-1].index(True)
+    chunks, gate = chunks[first:last + 1], gate[first:last + 1]
+
+    fade_n = int(_FADE_S * AUDIO_RATE)
+    out = []
+    for i, (audio, is_open) in enumerate(zip(chunks, gate)):
+        if not is_open:
+            out.append(np.zeros_like(audio))
+            continue
+        audio = audio.copy()
+        n = min(fade_n, len(audio))
+        if i == 0 or not gate[i - 1]:
+            audio[:n] *= np.linspace(0.0, 1.0, n, dtype=audio.dtype)
+        if i == len(gate) - 1 or not gate[i + 1]:
+            audio[-n:] *= np.linspace(1.0, 0.0, n, dtype=audio.dtype)
+        out.append(audio)
+    return np.concatenate(out)
 
 
 def _shift_to_baseband(iq: np.ndarray, offset_hz: float, sample_rate: float) -> np.ndarray:
@@ -83,6 +113,8 @@ class Recorder:
         self._states = [ChannelState(i, ch.name) for i, ch in enumerate(channels)]
 
         self._buffers: list[list[np.ndarray]] = [[] for _ in channels]
+        # Per-block noise-squelch state (always True for demods without one, e.g. HF)
+        self._gates: list[list[bool]] = [[] for _ in channels]
         self._tx_start: list[float | None] = [None] * len(channels)
 
         self._stop = threading.Event()
@@ -145,6 +177,7 @@ class Recorder:
                     bb = self._mixers[idx].shift(iq)
                     audio = self._demods[idx].demodulate(bb)
                     self._buffers[idx].append(audio)
+                    self._gates[idx].append(getattr(self._demods[idx], "squelch_open", True))
                     self._buffered[idx] += len(audio)
                     if (self._max_segment_samples
                             and self._buffered[idx] >= self._max_segment_samples):
@@ -183,7 +216,17 @@ class Recorder:
         if not self._buffers[idx]:
             return
 
-        audio = np.concatenate(self._buffers[idx])
+        raw_s = self._buffered[idx] / AUDIO_RATE
+        audio = _apply_squelch(self._buffers[idx], self._gates[idx])
+        self._buffers[idx] = []
+        self._gates[idx] = []
+        self._buffered[idx] = 0
+        if reset_demod:
+            self._tx_start[idx] = None
+            self._demods[idx].reset()
+        if audio is None:
+            log.info("[%s] Discarded %.1fs on %s — noise only", self._dev_id, raw_s, ch.name)
+            return
         duration_s = len(audio) / AUDIO_RATE
 
         now = datetime.now()
@@ -207,10 +250,5 @@ class Recorder:
             w.writeframes(audio_i16.tobytes())
         tmp.rename(dst)
 
-        log.info("[%s] Saved %.1fs → %s", self._dev_id, duration_s, fname)
-
-        self._buffers[idx] = []
-        self._buffered[idx] = 0
-        if reset_demod:
-            self._tx_start[idx] = None
-            self._demods[idx].reset()
+        log.info("[%s] Saved %.1fs (%.1fs noise squelched) → %s",
+                 self._dev_id, duration_s, raw_s - duration_s, fname)

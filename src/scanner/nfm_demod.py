@@ -25,6 +25,17 @@ log = logging.getLogger(__name__)
 AUDIO_RATE = 48_000
 NFM_DEVIATION_HZ = 5_000   # peak deviation for narrowband FM
 
+# ── Noise squelch ─────────────────────────────────────────────────────────────
+# With a carrier present the discriminator output above the voice band is
+# nearly empty; with no carrier (or a carrier too weak to capture) it is
+# full-scale white noise. RMS of the discriminator output in this band is the
+# classic NFM "noise squelch" metric; it is independent of RF gain.
+# Hysteresis stops chatter on marginal signals.
+SQUELCH_BAND_HZ = (8_000.0, 20_000.0)
+SQUELCH_CLOSE = 0.8   # noise above this → squelch closes (~5 dB CNR)
+SQUELCH_OPEN = 0.5    # noise below this → squelch opens (~8 dB CNR)
+# Reference levels (simulated): pure noise ≈ 1.65, 10 dB CNR ≈ 0.38, 20 dB ≈ 0.12.
+
 
 class NFMDemodulator:
     def __init__(self, sample_rate: float, audio_rate: int = AUDIO_RATE):
@@ -51,6 +62,13 @@ class NFMDemodulator:
         # discriminator output is angle in [-π, π]; peak for max_dev is:
         #   max_rad = 2π * max_dev / fs_mid
         self._disc_gain = float(self._fs_mid) / (2.0 * np.pi * NFM_DEVIATION_HZ)
+
+        # ── Noise-squelch band filter (on raw discriminator output) ───────────
+        self._sq_sos = ss.butter(4, SQUELCH_BAND_HZ, btype="bandpass",
+                                 fs=self._fs_mid, output="sos")
+        self._sq_zi = np.zeros((self._sq_sos.shape[0], 2))
+        self.noise_level = 0.0
+        self.squelch_open = False
 
         # ── De-emphasis IIR (τ = 75 µs, bilinear transform) ───────────────────
         b_s = np.array([1.0])
@@ -94,6 +112,14 @@ class NFMDemodulator:
         disc = np.angle(np.conj(prev_col) * decimated).astype(np.float32)
         disc *= self._disc_gain
 
+        # 3b. Noise squelch metric
+        hf, self._sq_zi = ss.sosfilt(self._sq_sos, disc, zi=self._sq_zi)
+        self.noise_level = float(np.sqrt(np.mean(hf * hf)))
+        if self.squelch_open:
+            self.squelch_open = self.noise_level < SQUELCH_CLOSE
+        else:
+            self.squelch_open = self.noise_level < SQUELCH_OPEN
+
         # 4. De-emphasis
         disc, self._deemph_zi = ss.lfilter(self._deemph_b, self._deemph_a,
                                              disc, zi=self._deemph_zi)
@@ -109,6 +135,9 @@ class NFMDemodulator:
 
     def reset(self) -> None:
         """Reset all filter state. Call when switching to a new channel."""
+        self._sq_zi[:] = 0.0
+        self.noise_level = 0.0
+        self.squelch_open = False
         self._lpf_zi[:] = 0.0
         self._prev = np.complex64(0.0)
         self._deemph_zi = ss.lfilter_zi(self._deemph_b, self._deemph_a).astype(np.float32)
