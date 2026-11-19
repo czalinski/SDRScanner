@@ -39,12 +39,15 @@ Marine/Railroad/HAM (not built yet — see "Declared but not built" below).
 
 ## ⚠ Needs you (don't forget)
 
-- [ ] **1. ADS-B feeders** — piaware / fr24feed / adsbx-feed are not installed
-      on the current Pi. Needs your sudo password + FlightAware and FR24
-      accounts (details under "Software — ADS-B / AIS" below).
-- [ ] **2. ADS-B antenna height** — `receiver_alt_m` in
-      `config/channels/adsb.yaml` is a 50 m placeholder; set the collinear's
-      real height above sea level (needed for accurate MLAT when feeding).
+- [x] **1. ADS-B feeders** — airplanes.live and adsb.lol feeding (installed
+      by the user 2026-11-19; services airplanes-feed/-mlat, adsblol-feed/-mlat,
+      config /etc/default/airplanes and /etc/default/adsblol). adsb.lol's
+      website blocks scripted downloads — install from
+      raw.githubusercontent.com/adsblol/feed/master/install.sh. FlightAware
+      (free for feeders) maybe later; ADS-B Exchange skipped.
+- [ ] **2. ADS-B antenna height** — set to 90 m MSL (≈84 m ground + 6 m
+      mount, estimate) in adsb.yaml and both feeders' ALTITUDE. Re-measure
+      after the antennas move outside and update all three.
 - [x] **3. Fixed IP for the Pi** — DHCP reservation added in the router
       2026-11-19 (`192.168.68.97`, over WiFi `wlan0`).
 
@@ -93,9 +96,7 @@ Marine/Railroad/HAM (not built yet — see "Declared but not built" below).
       - ADS-B Exchange: one-time `docker run` per adsbexchange.com/how-to-feed
         to create the `adsbx-feed` container (script only `docker start`s an
         existing one)
-- [ ] `receiver_alt_m` in `config/channels/adsb.yaml` is still a placeholder
-      (50m) — update with actual antenna height MSL once mounted; lat/lon
-      are already exact.
+- [x] `receiver_alt_m` set to 90 m (estimate; see "Needs you" item 2).
 - [x] AIS verified on real RF (2026-11-18): 20–40 vessels on the map.
       A corrupt position (lat −107) crash-looped the kiosk — now filtered.
 

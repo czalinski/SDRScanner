@@ -46,4 +46,4 @@ mlat:
   enabled: true               # feeding aggregator networks — mlat helps position non-ADS-B-equipped aircraft
   receiver_lat: 47.2672466    # exact (Stadium District, Tacoma — geocoded from street address)
   receiver_lon: -122.4522931
-  receiver_alt_m: 50          # TODO: still a placeholder — update with actual antenna height MSL
+  receiver_alt_m: 90          # antenna MSL: ~84 m ground + ~6 m mount (2026-11-19, estimate — recheck after moving outside)
