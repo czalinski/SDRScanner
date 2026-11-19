@@ -153,8 +153,9 @@ sudo systemctl enable --now sdr-watchdog.timer
 mkdir -p "$HOME/.config/systemd/user"
 install_unit adsb-map.service "$HOME/.config/systemd/user"
 install_unit sdr-scanner.service "$HOME/.config/systemd/user"
+install_unit voice-commands.service "$HOME/.config/systemd/user"
 systemctl --user daemon-reload
-systemctl --user enable adsb-map.service sdr-scanner.service
+systemctl --user enable adsb-map.service sdr-scanner.service voice-commands.service
 # Scanner audio → monitor speaker (HDMI0) instead of the 3.5mm jack
 mkdir -p "$HOME/.config/pulse"
 cp "$REPO_DIR/config/audio/pulse-default.pa" "$HOME/.config/pulse/default.pa"
@@ -174,6 +175,15 @@ python3 -m venv --system-site-packages "$REPO_DIR/.venv"
 source "$REPO_DIR/.venv/bin/activate"
 pip install --upgrade pip -q
 pip install -r "$REPO_DIR/requirements.txt" -q
+
+# Piper voice for spoken replies (src/voice/voice_service.py); the Whisper
+# model downloads itself on first use
+PIPER_DIR="$HOME/.local/share/sdrscanner/piper"
+mkdir -p "$PIPER_DIR"
+for f in en_US-lessac-medium.onnx en_US-lessac-medium.onnx.json; do
+    [ -s "$PIPER_DIR/$f" ] || curl -sSL -o "$PIPER_DIR/$f" \
+        "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/$f"
+done
 
 log ""
 log "=== Installation complete ==="

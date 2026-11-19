@@ -1,0 +1,14 @@
+[Unit]
+Description=SDRScanner voice commands ("hey radio") via USB microphone
+After=sdr-scanner.service pulseaudio.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/home/czalinski/SDRScanner/scripts/run_voice.sh
+# Exits if the mic is unplugged; retries until it's back
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

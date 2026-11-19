@@ -14,6 +14,7 @@ found without a hand-maintained station list (schedules change seasonally).
 """
 import logging
 import math
+import threading
 import time
 from pathlib import Path
 
@@ -102,6 +103,10 @@ class BandSwitcher:
             raise ValueError(f"bands: needs a 'day' and a 'night' entry (missing {sorted(missing)})")
         self._current: str | None = None
         self._rec: Recorder | None = None
+        self._lock = threading.Lock()
+        # control.Control — a band/station picked by voice or ctl overrides the
+        # day/night schedule (control.ham_band() returns None for automatic)
+        self.control = None
 
     @property
     def current_band(self) -> str | None:
@@ -113,14 +118,30 @@ class BandSwitcher:
     def start(self) -> None:
         self.tick()
 
+    def retune(self) -> None:
+        """Apply a changed override right away instead of at the next tick."""
+        self.tick()
+
     def tick(self) -> None:
-        want = self.wanted_band()
+        with self._lock:
+            self._tick()
+
+    def _tick(self) -> None:
+        override = self.control.ham_band() if self.control is not None else None
+        if override is not None:
+            want, band = f"manual:{override['name']}", override
+        else:
+            want = self.wanted_band()
+            band = self._bands[want]
         if want == self._current:
             return
-        band = self._bands[want]
-        log.info("[%s] Sun %.1f° → switching to %s band (%s, %.3f MHz)",
-                 self._dev["id"], sun_elevation_deg(self._lat, self._lon),
-                 want, band["name"], band["center_mhz"])
+        if override is not None:
+            log.info("[%s] Manual tuning → %s (%.3f MHz)", self._dev["id"],
+                     band["name"], band["center_mhz"])
+        else:
+            log.info("[%s] Sun %.1f° → switching to %s band (%s, %.3f MHz)",
+                     self._dev["id"], sun_elevation_deg(self._lat, self._lon),
+                     want, band["name"], band["center_mhz"])
         if self._rec is not None:
             self._rec.stop()
             self._rec = None
@@ -150,6 +171,10 @@ class BandSwitcher:
         log.info("[%s] %s band: %d channels", self._dev["id"], band["name"], len(channels))
 
     def stop(self) -> None:
+        with self._lock:
+            self._stop_rec()
+
+    def _stop_rec(self) -> None:
         if self._rec is not None:
             self._rec.stop()
             self._rec = None

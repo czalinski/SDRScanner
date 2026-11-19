@@ -20,6 +20,7 @@ from src.scanner.fft_engine import Channel
 from src.scanner.linear_demod import DETECT_WINDOW
 from src.scanner.playback_queue import PlaybackQueue
 from src.scanner.station_db import StationDB
+from src.scanner.control import Control, serve
 from src.scanner.recorder import Recorder
 from src.scanner.retention import check_mount, prune
 
@@ -164,6 +165,17 @@ def main() -> None:
                        priorities=priorities, history_path=PLAYBACK_HISTORY)
 
     pb.start()
+
+    # Voice / ctl control: mute, focus, volume, HAM tuning — restored from the
+    # last saved state, served on a Unix socket (control.py)
+    control = Control()
+    control.playback = pb
+    pb.control = control
+    for sw in switchers:
+        sw.control = control
+        if sw._dev["id"] == "ham":
+            control.ham_switcher = sw
+    serve(control)
 
     def _load_stations():
         # Shortwave station names for the audio panel — downloads the EiBi

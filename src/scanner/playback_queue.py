@@ -70,6 +70,8 @@ class PlaybackQueue:
         # StationDB (station_db.py) — names shortwave clips; may be set later,
         # once the schedule has loaded in the background
         self.station_db = station_db
+        # Control (control.py) — mute / focus / hold; None = play everything
+        self.control = None
         self._max_latency = max_latency_s
         self._priorities = priorities or {}
         self._heap: list[tuple[int, float, int, Path]] = []
@@ -136,6 +138,14 @@ class PlaybackQueue:
             prio, _, _, path = heapq.heappop(self._heap)
             return prio, path
 
+    @property
+    def history(self) -> list[dict]:
+        return list(self._history)
+
+    def _blocked(self, device: str) -> bool:
+        c = self.control
+        return c is not None and not c.should_play(device)
+
     def _write_history(self) -> None:
         if not self._history_path:
             return
@@ -168,6 +178,13 @@ class PlaybackQueue:
                 log.info("Drop stale: %s (%.0fs old)", path.name, age)
                 continue
 
+            device = device_id_from_filename(path.name)
+            if self._blocked(device):
+                log.debug("Muted: %s", path.name)
+                continue
+            while self.control is not None and self.control.held() and not self._stop.is_set():
+                time.sleep(_POLL_S)            # the voice service is speaking
+
             log.info("Playing: %s", path.name)
             entry = {**describe_recording(path.name), "started": time.time(),
                      "duration_s": round(_wav_duration_s(path), 1), "status": "playing"}
@@ -187,9 +204,12 @@ class PlaybackQueue:
             started = time.monotonic()
             outcome = "played"
             while proc.poll() is None:
-                if self._stop.is_set() or self._more_important_waiting(prio):
+                muted_now = self._blocked(device) or (self.control is not None
+                                                       and self.control.held())
+                if self._stop.is_set() or muted_now or self._more_important_waiting(prio):
                     if not self._stop.is_set():
-                        log.info("Interrupted %s for higher-priority audio", path.name)
+                        log.info("Interrupted %s for %s", path.name,
+                                 "mute/voice" if muted_now else "higher-priority audio")
                     outcome = "interrupted"
                     proc.terminate()
                     break
