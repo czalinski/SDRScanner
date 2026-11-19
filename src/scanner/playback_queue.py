@@ -27,6 +27,8 @@ import wave
 from collections import deque
 from pathlib import Path
 
+from src.scanner.control import amateur_band_of
+
 log = logging.getLogger(__name__)
 
 DEFAULT_PRIORITY = 1
@@ -188,7 +190,8 @@ class PlaybackQueue:
             log.info("Playing: %s", path.name)
             entry = {**describe_recording(path.name), "started": time.time(),
                      "duration_s": round(_wav_duration_s(path), 1), "status": "playing"}
-            if entry["device"] == "ham" and entry["freq_khz"] and self.station_db:
+            if (entry["device"] == "ham" and entry["freq_khz"] and self.station_db
+                    and not amateur_band_of(entry["freq_khz"])):   # hams aren't in EiBi
                 ident = self.station_db.identify(entry["freq_khz"])
                 if ident:
                     entry["station"], entry["language"] = ident

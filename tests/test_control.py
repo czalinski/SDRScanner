@@ -40,7 +40,7 @@ with tempfile.TemporaryDirectory() as tmp:
     c2.handle({"cmd": "ham", "mode": "auto"})
     assert c2.ham_band() is None
     assert not c2.handle({"cmd": "ham", "freq_khz": 145000})["ok"]  # VHF, not shortwave
-    assert not c2.handle({"cmd": "ham", "band": "40"})["ok"]        # ham band, not broadcast
+    assert not c2.handle({"cmd": "ham", "band": "30"})["ok"]        # CW/data only, no voice
     print("  commands: OK")
 
     for junk in ("{not json", "[1,2]", '{"volume": "loud", "focus": "kitchen", "ham": 7}'):

@@ -14,7 +14,7 @@ Commands:
   {"cmd": "mute"} | {"cmd": "mute", "source": "railroad"}
   {"cmd": "unmute"} | {"cmd": "unmute", "source": "marine"}
   {"cmd": "focus", "source": "marine"} | {"cmd": "focus", "source": null}
-  {"cmd": "ham", "mode": "auto"} | {"cmd": "ham", "band": "49m"}
+  {"cmd": "ham", "mode": "auto"} | {"cmd": "ham", "band": "49m"}   (or "40m"/"75m": ham voice)
   {"cmd": "ham", "freq_khz": 6180} | {"cmd": "ham", "station": "radio habana cuba"}
   {"cmd": "status"}                  — what's playing / last played, as a sentence
   {"cmd": "hold", "seconds": 3}      — pause speaker playback (while the voice speaks)
@@ -43,17 +43,34 @@ DEFAULTS = {"volume": 80, "muted": False, "muted_sources": [], "focus": None,
 
 # Shortwave broadcast bands (kHz, ITU). "go to 31 meters" scans the whole band.
 BROADCAST_BANDS = {
-    "120m": (2300, 2495), "90m": (3200, 3400), "75m": (3900, 4000), "60m": (4750, 5060),
+    "120m": (2300, 2495), "90m": (3200, 3400), "60m": (4750, 5060),
     "49m": (5900, 6200), "41m": (7200, 7600), "31m": (9400, 9900), "25m": (11600, 12100),
     "22m": (13570, 13870), "19m": (15100, 15800), "16m": (17480, 17900),
     "15m": (18900, 19020), "13m": (21450, 21850), "11m": (25670, 26100),
 }
+# Amateur (ham) phone segments, US General/Extra, and their sideband. 75m
+# includes the 3.9–4.0 MHz broadcast band, which in the Americas is ham voice.
+AMATEUR_BANDS = {"75m": (3600, 4000, "lsb"), "40m": (7125, 7300, "lsb"),
+                 "20m": (14150, 14350, "usb")}
+# SSB must be tuned to ~100 Hz: 1 kHz scan slots and 125 Hz FFT bins
+# (fft_engine fft_size; linear_demod.DETECT_WINDOW explains the slot choice).
+# Default hold settings, so a steady carrier/RFI whine is absorbed in a minute.
+SSB_DETECTOR = {"fft_size": 16384}
 # Tune the dongle this far below the band/station: the RTL-SDR's DC spike sits
 # at its centre frequency, so nothing we listen to may be there.
 DC_OFFSET_KHZ = 30
 
 
+def amateur_band_of(khz: float) -> str | None:
+    for name, (lo, hi, _) in AMATEUR_BANDS.items():
+        if lo <= khz <= hi:
+            return name
+    return None
+
+
 def band_of(khz: float) -> str | None:
+    if amateur_band_of(khz):
+        return amateur_band_of(khz)
     for name, (lo, hi) in BROADCAST_BANDS.items():
         if lo <= khz <= hi:
             return name
@@ -61,7 +78,13 @@ def band_of(khz: float) -> str | None:
 
 
 def band_for_meters(name: str) -> dict | None:
-    """Band dict (band_schedule.py format) scanning a whole broadcast band."""
+    """Band dict (band_schedule.py format) scanning a whole broadcast or ham band."""
+    if name in AMATEUR_BANDS:
+        lo, hi, mode = AMATEUR_BANDS[name]
+        return {"name": f"{name} ham", "center_mhz": (lo - DC_OFFSET_KHZ) / 1000,
+                "detector": SSB_DETECTOR,
+                "scan_ranges": [{"label": name, "from_mhz": lo / 1000, "to_mhz": hi / 1000,
+                                 "step_khz": 1, "mode": mode}]}
     if name not in BROADCAST_BANDS:
         return None
     lo, hi = BROADCAST_BANDS[name]
@@ -73,8 +96,13 @@ def band_for_meters(name: str) -> dict | None:
 def band_for_freq(khz: float) -> dict:
     """Band dict holding a single station — the radio stays on it."""
     label = band_of(khz) or "HF"
-    return {"name": f"{khz:g} kHz", "center_mhz": (khz - DC_OFFSET_KHZ) / 1000,
+    band = {"name": f"{khz:g} kHz", "center_mhz": (khz - DC_OFFSET_KHZ) / 1000,
             "channels": [{"name": f"{label} {khz:g}", "freq_mhz": khz / 1000, "mode": "am"}]}
+    ham = amateur_band_of(khz)
+    if ham:                                       # a ham voice frequency — sideband
+        band["channels"][0]["mode"] = AMATEUR_BANDS[ham][2]
+        band["detector"] = SSB_DETECTOR
+    return band
 
 
 def load_state(path: Path = STATE_PATH) -> dict:
@@ -101,6 +129,7 @@ def load_state(path: Path = STATE_PATH) -> dict:
     ham = saved.get("ham")
     if isinstance(ham, dict) and (ham.get("mode") == "auto"
                                   or ham.get("band") in BROADCAST_BANDS
+                                  or ham.get("band") in AMATEUR_BANDS
                                   or isinstance(ham.get("freq_khz"), (int, float))):
         state["ham"] = ham
     return state
@@ -215,10 +244,13 @@ class Control:
         elif "band" in req:
             band = str(req["band"]).lower().replace(" ", "")
             band = band if band.endswith("m") else band + "m"
-            if band not in BROADCAST_BANDS:
-                return {"ok": False, "say": f"There's no {band[:-1]} meter broadcast band."}
+            if band in AMATEUR_BANDS:
+                say = f"Listening for hams on {band[:-1]} meters."
+            elif band in BROADCAST_BANDS:
+                say = f"Scanning the {band[:-1]} meter broadcast band."
+            else:
+                return {"ok": False, "say": f"I don't have a {band[:-1]} meter band."}
             self.state["ham"] = {"band": band}
-            say = f"Scanning the {band[:-1]} meter band."
         elif "freq_khz" in req:
             khz = float(req["freq_khz"])
             if not 1600 <= khz <= 30000:
@@ -312,6 +344,9 @@ def spoken_description(e: dict) -> str:
         if e.get("station"):
             lang = f", in {e['language']}" if e.get("language") else ""
             return f"{e['station']}, {freq} kilohertz{lang}"
+        ham = amateur_band_of(freq) if freq else None
+        if ham:
+            return f"ham radio, {ham[:-1]} meters, {freq} kilohertz"
         return f"shortwave {freq} kilohertz"
     name = channel.replace("Ch ", "channel ").replace(" — ", ", ")
     return f"{'railroad' if dev == 'railroad' else dev} {name}"

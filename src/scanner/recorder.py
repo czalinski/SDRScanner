@@ -38,6 +38,15 @@ _FADE_S = 0.010   # ramp at each squelch edge so gating doesn't click
 # transmission (max_segment_s) is always kept.
 MIN_CLIP_S = 1.0
 
+# SSB/CW have no FM noise to measure, so their squelch is the FFT detector
+# itself: a block is signal if the channel was detected in it or within the
+# last SPECTRUM_HANG_S (bridges the gaps between words). The 3 s TAIL hiss
+# at the end of every over is then trimmed like the NFM squelch's, and a
+# lone static crash (one block → 0.6 s) falls under MIN_CLIP_S. Not used for
+# AM, whose carrier is detected continuously anyway.
+SPECTRUM_HANG_S = 0.6
+_SPECTRUM_SQUELCH_MODES = {"usb", "lsb", "cw"}
+
 
 def _apply_squelch(chunks: list[np.ndarray], gate: list[bool]) -> np.ndarray | None:
     """
@@ -119,6 +128,7 @@ class Recorder:
         self._buffers: list[list[np.ndarray]] = [[] for _ in channels]
         # Per-block noise-squelch state (always True for demods without one, e.g. HF)
         self._gates: list[list[bool]] = [[] for _ in channels]
+        self._last_seen: list[float] = [float("-inf")] * len(channels)   # spectrum squelch
         self._tx_start: list[float | None] = [None] * len(channels)
 
         self._stop = threading.Event()
@@ -181,7 +191,7 @@ class Recorder:
                     bb = self._mixers[idx].shift(iq)
                     audio = self._demods[idx].demodulate(bb)
                     self._buffers[idx].append(audio)
-                    self._gates[idx].append(getattr(self._demods[idx], "squelch_open", True))
+                    self._gates[idx].append(self._gate(idx, ch, idx in active_set, now))
                     self._buffered[idx] += len(audio)
                     if (self._max_segment_samples
                             and self._buffered[idx] >= self._max_segment_samples):
@@ -201,6 +211,14 @@ class Recorder:
                 self._flush(idx, ch)
 
         log.info("[%s] Recorder stopped", self._dev_id)
+
+    def _gate(self, idx: int, ch: Channel, detected: bool, now: float) -> bool:
+        """Is this block signal (True) or noise to squelch (False)?"""
+        if ch.mode in _SPECTRUM_SQUELCH_MODES:
+            if detected:
+                self._last_seen[idx] = now
+            return now - self._last_seen[idx] <= SPECTRUM_HANG_S
+        return getattr(self._demods[idx], "squelch_open", True)
 
     def _select_recording(self) -> set[int]:
         receiving = [i for i, st in enumerate(self._states) if st.is_receiving]

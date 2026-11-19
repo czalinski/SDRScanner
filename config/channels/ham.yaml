@@ -1,4 +1,4 @@
-# HF shortwave broadcast (+ HAM) — receive only
+# HF amateur voice (+ shortwave broadcast on request) — receive only
 # Device: NooElec SMArt XTR (RTLSDR_HAM) behind a Ham It Up upconverter in
 # "UP" mode (HF + 125 MHz — see `upconverter_offset_mhz` in devices.yaml).
 #
@@ -38,37 +38,38 @@ detector:
   hold_db: 6.0
   hold_alpha: 0.0
 
+# Default schedule: amateur (ham) voice — 2026-11-18 the user preferred hams
+# to the broadcasters. 40m by day (regional, WA/OR/BC), 75m at night (when
+# it opens up). Broadcast bands remain available by voice ("49 meters") or
+# `python -m src.scanner.ctl band 49m`; src/scanner/control.py has the band
+# tables (AMATEUR_BANDS, BROADCAST_BANDS) used for those.
+#
+# SSB bands: 1 kHz slots (ham phone stations sit near whole kHz) and a
+# 16384-point FFT (125 Hz bins) so the right slot can be picked — see
+# DETECT_WINDOW in src/scanner/linear_demod.py. Their detector replaces the
+# broadcast one above: default hold settings, so a steady carrier or RFI
+# whine is absorbed after about a minute instead of recording forever.
+# Frequency accuracy checked 2026-11-18 against WWV 5/10/15 MHz: +17…+31 Hz,
+# no correction needed.
 bands:
   - when: day
-    name: "22m+19m"
-    center_mhz: 14.55          # window ~13.63–15.47 MHz
+    name: "40m ham"
+    center_mhz: 7.095          # 30 kHz below the band — DC spike out of the way
+    detector: {fft_size: 16384}
     scan_ranges:
-      - label: "22m"
-        from_mhz: 13.635
-        to_mhz: 13.870
-        step_khz: 5
-      - label: "19m"
-        from_mhz: 15.100
-        to_mhz: 15.465
-        step_khz: 5
-    # Strongest signal in the 2026-11-06 afternoon sweep was 13.870 MHz
-    # (+16 dB) — covered by the 22m range above. WWV 15.000 MHz is in this
-    # window too; left out so a time signal doesn't win over broadcasts.
+      - label: "40m"
+        from_mhz: 7.125        # US General/Extra phone, LSB
+        to_mhz: 7.300
+        step_khz: 1
+        mode: lsb
 
   - when: night
-    name: "49m+41m"
-    center_mhz: 6.75           # window ~5.83–7.67 MHz
+    name: "75m ham"
+    center_mhz: 3.570
+    detector: {fft_size: 16384}
     scan_ranges:
-      - label: "49m"
-        from_mhz: 5.900
-        to_mhz: 6.200
-        step_khz: 5
-      - label: "41m"
-        from_mhz: 7.300        # 7.200–7.300 is ham phone (LSB) in the Americas
-        to_mhz: 7.600
-        step_khz: 5
-    # To also catch 40m ham voice at night, add fixed LSB channels, e.g.:
-    # channels:
-    #   - name: "40m phone 7.200"
-    #     freq_mhz: 7.200
-    #     mode: lsb
+      - label: "75m"
+        from_mhz: 3.600        # US General/Extra phone, LSB
+        to_mhz: 4.000
+        step_khz: 1
+        mode: lsb

@@ -165,7 +165,7 @@ class BandSwitcher:
             lo_offset_hz=float(self._dev.get("upconverter_offset_mhz") or 0.0) * 1e6,
             max_segment_s=self._dev.get("max_segment_s"),
             max_active_channels=self._cfg.get("max_active_channels"),
-            detector=self._cfg.get("detector"),
+            detector=band.get("detector", self._cfg.get("detector")),   # per band, e.g. SSB
         )
         self._rec.start()
         log.info("[%s] %s band: %d channels", self._dev["id"], band["name"], len(channels))

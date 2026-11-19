@@ -86,6 +86,31 @@ def test_short_clip_discarded():
             assert got == n_files, (seconds, got)
 
 
+def test_ssb_spectrum_squelch():
+    """SSB: gate follows the FFT detector with a 0.6 s hang — word gaps stay
+    open, the 3 s TAIL hiss closes, and a lone static crash is too short."""
+    from src.scanner.fft_engine import Channel
+    from src.scanner.recorder import SPECTRUM_HANG_S, Recorder
+    rec = Recorder.__new__(Recorder)
+    rec._last_seen = [float("-inf")]
+    rec._demods = [None]
+    ch = Channel("75m 3873", 3.873e6, mode="lsb")
+    dt = BLOCK / FS
+    # speech 1 s, 0.3 s pause between words, speech 1 s, then 3 s of TAIL
+    detected = [True] * 62 + [False] * 19 + [True] * 62 + [False] * 187
+    gates = [rec._gate(0, ch, d, i * dt) for i, d in enumerate(detected)]
+    assert all(gates[:143]), "word gap must not be squelched"
+    open_tail = sum(gates[143:]) * dt
+    assert abs(open_tail - SPECTRUM_HANG_S) < 2 * dt, open_tail
+    chunks = [np.full(768, 0.1, np.float32)] * len(gates)
+    out = _apply_squelch(chunks, gates)
+    assert len(out) / AUDIO_RATE < 2.95, len(out) / AUDIO_RATE    # 5.2 s raw → ~2.9 s
+
+    rec._last_seen = [float("-inf")]
+    crash = [rec._gate(0, ch, i == 0, i * dt) for i in range(200)]   # one block of static
+    assert sum(crash) * dt < 1.0
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

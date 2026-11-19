@@ -120,14 +120,23 @@ Marine/Railroad/HAM (not built yet — see "Declared but not built" below).
       (6.75 MHz). Each band scans the 5 kHz broadcast raster and records one
       station at a time (`max_active_channels: 1`). Verified live: locked
       onto 13.870 MHz and recorded continuous 30 s files through fades.
-- [ ] Check the night band after dark — the 49m/41m choice is from general
-      propagation, not yet confirmed with a night sweep from this antenna.
+- [x] **Ham voice is now the default schedule** (2026-11-18 — the user didn't
+      like the broadcasters): day 40m (7.125–7.300), night 75m (3.600–4.000),
+      both LSB, 1 kHz slots, 16384-point FFT (125 Hz bins) so SSB lands on
+      the right slot; spectrum squelch trims the hiss tail. Broadcast bands
+      still selectable by voice ("49 meters"). Frequency error vs WWV:
+      +17…+31 Hz, no correction needed. First night: 75m busy, a 3808 kHz
+      clip transcribed as speech with phonetic callsigns.
+- [ ] Ham: stickier selection — it currently jumps to whichever QSO is
+      strongest when the current one pauses; prefer staying on a frequency
+      that was active in the last minute or two (follow one conversation).
 - [ ] Optional: rotate to another station after N minutes (currently stays
       on one station until it fades or the band switches).
 - [x] Fixed detector cutting off long transmissions: the noise floor used
       to climb into any steady carrier in ~0.3 s, ending recordings ~3 s in
       (affected marine/railroad too). Re-test VHF end to end with this.
-- [ ] Tune HAM activity detection against real signals — it uses the same
+- [~] Tune HAM activity detection against real signals (SSB window and
+      FFT resolution done 2026-11-18; watch for RFI false triggers on 75m) — it uses the same
       FFT power threshold as VHF, with a per-mode SSB/CW/AM energy window.
       If HF noise/QRM makes that unreliable for SSB, switch to audio-domain
       voice-activity detection.

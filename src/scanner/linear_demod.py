@@ -45,9 +45,16 @@ _PASSBAND = {
 
 # Where the signal's energy sits relative to the dial frequency, and how wide —
 # used by the FFT detector (fft_engine.Channel.detect_offset_hz / bandwidth_hz).
+#
+# SSB: only the 300–1100 Hz of audio next to the suppressed carrier, where
+# speech is strongest. Ham phone stations sit roughly on whole kHz, and the
+# band is scanned in 1 kHz slots; with this window the correctly tuned slot
+# reads strongest — the slot 1 kHz past the carrier sees nothing (the other
+# sideband is suppressed) and the slot 1 kHz short sees only the weaker
+# 1.3–2.1 kHz audio. Needs ~125 Hz FFT bins (detector fft_size 16384).
 DETECT_WINDOW = {
-    "usb": (1_550.0, 2_500.0),
-    "lsb": (-1_550.0, 2_500.0),
+    "usb": (700.0, 800.0),
+    "lsb": (-700.0, 800.0),
     "cw":  (0.0, 500.0),
     # Carrier only (±1 kHz): broadcasters sit on a 5 kHz raster, and an 8 kHz
     # window would also trigger on a neighbour's sidebands.

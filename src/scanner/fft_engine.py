@@ -38,6 +38,12 @@ Design notes
   is kept at or above FLOOR_GUARD × the local median of the current spectrum.
   A narrowband signal barely moves a 65-bin median, so it's still detected;
   a floor that's wrong by more than that gets pulled back up at once.
+
+* fft_size is per device (detector config). 2048 gives 1 kHz bins at
+  2.048 MS/s — fine for VHF voice and AM carriers. SSB has no carrier and must
+  be tuned to ~100 Hz, so the HF ham bands use 16384 (125 Hz bins). The
+  local median is always taken over ~65 kHz, on a spectrum averaged down to
+  ~1 kHz bins first so it costs the same at any size.
 """
 import logging
 from dataclasses import dataclass
@@ -69,29 +75,34 @@ class Channel:
 
 class FFTEngine:
     def __init__(self, center_freq: float, sample_rate: float, channels: list[Channel],
-                 hold_db: float = THRESHOLD_DB, hold_alpha: float = HOLD_ALPHA_DEFAULT):
+                 hold_db: float = THRESHOLD_DB, hold_alpha: float = HOLD_ALPHA_DEFAULT,
+                 fft_size: int = FFT_SIZE):
         self._hold_lin = 10.0 ** (hold_db / 10.0)
         self._hold_alpha = hold_alpha
         self.center_freq = center_freq
         self.sample_rate = sample_rate
         self.channels = channels
 
-        bin_width = sample_rate / FFT_SIZE
-        self._window = np.hanning(FFT_SIZE).astype(np.float32)
-        self._noise_floor_lin: np.ndarray | None = None   # shape (FFT_SIZE,), linear power
+        self.fft_size = n = int(fft_size)
+        bin_width = sample_rate / n
+        self._coarse = max(1, n // FFT_SIZE)       # bins averaged for the local median
+        self._window = np.hanning(n).astype(np.float32)
+        self._noise_floor_lin: np.ndarray | None = None   # shape (fft_size,), linear power
         self._last_snrs: list[float] = [0.0] * len(channels)
 
         # Pre-compute bin slice for each channel
         self._ch_slices: list[tuple[int, int]] = []
         for ch in channels:
             offset = ch.freq_hz + ch.detect_offset_hz - center_freq
-            center_bin = FFT_SIZE // 2 + int(round(offset / bin_width))
+            center_bin = n // 2 + int(round(offset / bin_width))
             half = max(1, int(ch.bandwidth_hz / 2 / bin_width))
             lo = max(0, center_bin - half)
-            hi = min(FFT_SIZE, center_bin + half + 1)
+            hi = min(n, center_bin + half + 1)
             self._ch_slices.append((lo, hi))
             log.debug("Channel %-30s  bins %d–%d  (%.3f MHz)",
                       ch.name, lo, hi, ch.freq_hz / 1e6)
+        self._lo = np.array([s[0] for s in self._ch_slices], dtype=np.int64)
+        self._hi = np.array([s[1] for s in self._ch_slices], dtype=np.int64)
 
     # ── public ─────────────────────────────────────────────────────────────────
 
@@ -106,13 +117,11 @@ class FFTEngine:
         # ── Detect using the PREVIOUS floor estimate ───────────────────────────
         active: list[int] = []
         if self._noise_floor_lin is not None:
-            for idx, (lo, hi) in enumerate(self._ch_slices):
-                sig   = float(np.mean(power_lin[lo:hi]))
-                noise = float(np.mean(self._noise_floor_lin[lo:hi]))
-                snr   = 10.0 * np.log10((sig + 1e-30) / (noise + 1e-30))
-                self._last_snrs[idx] = snr
-                if snr >= THRESHOLD_DB:
-                    active.append(idx)
+            sig = self._slice_means(power_lin)
+            noise = self._slice_means(self._noise_floor_lin)
+            snrs = 10.0 * np.log10((sig + 1e-30) / (noise + 1e-30))
+            self._last_snrs = snrs.tolist()
+            active = np.flatnonzero(snrs >= THRESHOLD_DB).tolist()
 
         # ── Update floor AFTER detection ───────────────────────────────────────
         self._update_floor(power_lin)
@@ -125,15 +134,28 @@ class FFTEngine:
 
     # ── private ────────────────────────────────────────────────────────────────
 
+    def _slice_means(self, x: np.ndarray) -> np.ndarray:
+        """Mean of x over every channel's bin slice (all channels at once)."""
+        c = np.concatenate(([0.0], np.cumsum(x, dtype=np.float64)))
+        return (c[self._hi] - c[self._lo]) / (self._hi - self._lo)
+
+    def _local_median(self, power_lin: np.ndarray) -> np.ndarray:
+        k = self._coarse
+        if k == 1:
+            return median_filter(power_lin, _MEDIAN_BINS, mode="nearest")
+        coarse = power_lin.reshape(-1, k).mean(axis=1)
+        return np.repeat(median_filter(coarse, _MEDIAN_BINS, mode="nearest"), k)
+
     def _mean_spectrum_lin(self, iq_block: np.ndarray) -> np.ndarray:
         """Average |FFT|² (linear power) over all complete FFT_SIZE chunks."""
         n = len(iq_block)
-        n_fft = max(1, n // FFT_SIZE)
-        acc = np.zeros(FFT_SIZE, dtype=np.float64)
+        size = self.fft_size
+        n_fft = max(1, n // size)
+        acc = np.zeros(size, dtype=np.float64)
 
         for i in range(n_fft):
-            chunk = iq_block[i * FFT_SIZE: (i + 1) * FFT_SIZE]
-            if len(chunk) < FFT_SIZE:
+            chunk = iq_block[i * size: (i + 1) * size]
+            if len(chunk) < size:
                 break
             spec = np.abs(np.fft.fftshift(np.fft.fft(chunk * self._window))) ** 2
             acc += spec
@@ -141,7 +163,7 @@ class FFTEngine:
         return (acc / n_fft).astype(np.float32)
 
     def _update_floor(self, power_lin: np.ndarray) -> None:
-        local = median_filter(power_lin, _MEDIAN_BINS, mode="nearest")
+        local = self._local_median(power_lin)
         if self._noise_floor_lin is None:
             self._noise_floor_lin = np.minimum(power_lin, local)
             return
