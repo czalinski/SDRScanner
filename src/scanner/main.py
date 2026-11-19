@@ -19,6 +19,7 @@ from src.scanner.device_manager import list_connected_devices
 from src.scanner.fft_engine import Channel
 from src.scanner.linear_demod import DETECT_WINDOW
 from src.scanner.playback_queue import PlaybackQueue
+from src.scanner.station_db import StationDB
 from src.scanner.recorder import Recorder
 from src.scanner.retention import check_mount, prune
 
@@ -163,6 +164,18 @@ def main() -> None:
                        priorities=priorities, history_path=PLAYBACK_HISTORY)
 
     pb.start()
+
+    def _load_stations():
+        # Shortwave station names for the audio panel — downloads the EiBi
+        # schedule (station_db.py), so off the startup path; refreshed weekly.
+        try:
+            pb.station_db = StationDB()
+            while True:
+                time.sleep(86400)
+                pb.station_db.refresh()
+        except Exception:
+            log.exception("Station schedule unavailable — shortwave shows frequencies only")
+    threading.Thread(target=_load_stations, daemon=True, name="stations").start()
     for rec in recorders:
         rec.start()
     for sw in switchers:

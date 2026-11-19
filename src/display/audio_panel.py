@@ -49,8 +49,14 @@ def describe(entry: dict) -> tuple[str, str, tuple[int, int, int]]:
     if dev == "ham":
         # Channel names are "<band> <kHz>" (e.g. "19m 15140") or a station name
         band = channel.split()[0]
-        title = f"{dev_name} {freq} kHz" if freq else f"{dev_name} {channel}"
-        detail = f"{band} band" if band.endswith("m") and band[:-1].isdigit() else channel
+        band_txt = f"{band} band" if band.endswith("m") and band[:-1].isdigit() else channel
+        if entry.get("station"):                   # named from the EiBi schedule
+            title = entry["station"]
+            detail = " · ".join(x for x in (f"{freq} kHz" if freq else "",
+                                            entry.get("language", ""), band) if x)
+        else:
+            title = f"{dev_name} {freq} kHz" if freq else f"{dev_name} {channel}"
+            detail = band_txt
     elif " — " in channel:                         # "Ch 14 — Vessel Traffic"
         short, desc = channel.split(" — ", 1)
         title, detail = f"{dev_name} {short}", desc

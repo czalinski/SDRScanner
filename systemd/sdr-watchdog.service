@@ -1,0 +1,6 @@
+[Unit]
+Description=SDRScanner watchdog — restart ADS-B/AIS services whose dongle went quiet
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /home/czalinski/SDRScanner/scripts/sdr_watchdog.py

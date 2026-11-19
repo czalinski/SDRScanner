@@ -63,10 +63,13 @@ def _wav_duration_s(path: Path) -> float:
 class PlaybackQueue:
     def __init__(self, recordings_dir: str | Path, max_latency_s: float = 30.0,
                  priorities: dict[str, int] | None = None,
-                 history_path: str | Path | None = None):
+                 history_path: str | Path | None = None, station_db=None):
         self._dir = Path(recordings_dir)
         self._history_path = Path(history_path) if history_path else None
         self._history: deque[dict] = deque(maxlen=HISTORY_LEN)
+        # StationDB (station_db.py) — names shortwave clips; may be set later,
+        # once the schedule has loaded in the background
+        self.station_db = station_db
         self._max_latency = max_latency_s
         self._priorities = priorities or {}
         self._heap: list[tuple[int, float, int, Path]] = []
@@ -168,6 +171,10 @@ class PlaybackQueue:
             log.info("Playing: %s", path.name)
             entry = {**describe_recording(path.name), "started": time.time(),
                      "duration_s": round(_wav_duration_s(path), 1), "status": "playing"}
+            if entry["device"] == "ham" and entry["freq_khz"] and self.station_db:
+                ident = self.station_db.identify(entry["freq_khz"])
+                if ident:
+                    entry["station"], entry["language"] = ident
             self._history.appendleft(entry)
             self._write_history()
             try:

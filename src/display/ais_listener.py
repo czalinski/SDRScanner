@@ -40,7 +40,7 @@ def _jsonable(value):
     return value
 
 
-def _write_ships(tracker: AISTracker) -> None:
+def _write_ships(tracker: AISTracker, last_rx: float) -> None:
     ships = []
     for t in tracker.tracks:
         if t.lat is None or t.lon is None:
@@ -61,7 +61,9 @@ def _write_ships(tracker: AISTracker) -> None:
         })
 
     tmp = SHIPS_JSON.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps({"now": time.time(), "ships": ships}))
+    # last_rx: when rtl_ais last sent anything — scripts/sdr_watchdog.py
+    # restarts rtl-ais if it goes quiet (dongle dropped off USB / hung)
+    tmp.write_text(json.dumps({"now": time.time(), "last_rx": last_rx, "ships": ships}))
     tmp.rename(SHIPS_JSON)
 
 
@@ -75,6 +77,7 @@ def main() -> None:
     log.info("Listening for AIS NMEA on udp://%s:%d", UDP_HOST, UDP_PORT)
 
     last_write = 0.0
+    last_rx = time.time()   # grace period from startup
     while True:
         try:
             data, _ = sock.recvfrom(4096)
@@ -82,6 +85,7 @@ def main() -> None:
             data = None
 
         if data:
+            last_rx = time.time()
             for line in data.splitlines():
                 line = line.strip()
                 if not line:
@@ -94,7 +98,7 @@ def main() -> None:
         now = time.time()
         if now - last_write >= WRITE_INTERVAL_S:
             tracker.cleanup()
-            _write_ships(tracker)
+            _write_ships(tracker, last_rx)
             last_write = now
 
 

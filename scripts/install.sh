@@ -141,11 +141,14 @@ install_unit() {   # <unit file> <destination dir> [sudo]
     sed -e "s|/home/czalinski/SDRScanner|$REPO_DIR|g" -e "s|^User=czalinski$|User=$USER|" \
         "$REPO_DIR/systemd/$1" | ${3:-} tee "$2/$1" > /dev/null
 }
-for unit in dump1090-adsb.service rtl-ais.service ais-listener.service; do
+for unit in dump1090-adsb.service rtl-ais.service ais-listener.service \
+            sdr-watchdog.service sdr-watchdog.timer; do
     install_unit "$unit" /etc/systemd/system sudo
 done
 sudo systemctl daemon-reload
 sudo systemctl enable dump1090-adsb.service rtl-ais.service ais-listener.service
+# Restarts ADS-B/AIS if their dongle drops off USB and the program hangs
+sudo systemctl enable --now sdr-watchdog.timer
 
 mkdir -p "$HOME/.config/systemd/user"
 install_unit adsb-map.service "$HOME/.config/systemd/user"

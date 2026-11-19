@@ -15,6 +15,12 @@ _READ_CHUNK = 16384  # samples per readStream call — large enough to drain the
 # of junk that the detector reads as activity (seen as short false
 # recordings right after an HF band switch).
 SETTLE_S = 0.5
+# A dongle that drops off USB (bumped cable, hub glitch) is reopened by serial
+# with a growing delay between attempts, so capture resumes on its own once the
+# device re-enumerates instead of stopping until the service is restarted.
+RECONNECT_MIN_S = 2.0
+RECONNECT_MAX_S = 30.0
+_MAX_CONSECUTIVE_ERRORS = 50   # ~5 s of failed/timed-out reads → reopen
 
 
 class IQSource:
@@ -49,7 +55,22 @@ class IQSource:
     # ── private ────────────────────────────────────────────────────────────────
 
     def _loop(self) -> None:
+        delay = RECONNECT_MIN_S
+        while not self._stop.is_set():
+            if self._capture():
+                delay = RECONNECT_MIN_S      # it streamed — next failure starts over
+            if self._stop.is_set():
+                break
+            log.warning("IQSource %s lost — reopening in %.0fs", self.serial, delay)
+            self._stop.wait(delay)
+            delay = min(delay * 2, RECONNECT_MAX_S)
+        log.info("IQSource %s stopped", self.serial)
+
+    def _capture(self) -> bool:
+        """Open the dongle and stream until stopped or the device fails.
+        Returns True if any samples were delivered."""
         dev = stream = None
+        streamed = False
         try:
             dev = SoapySDR.Device({"driver": "rtlsdr", "serial": self.serial})
             dev.setSampleRate(SOAPY_SDR_RX, 0, self.sample_rate)
@@ -80,13 +101,15 @@ class IQSource:
                     if sr.ret != _TIMEOUT:
                         log.warning("readStream error %d (serial=%s)", sr.ret, self.serial)
                     _consecutive_errors += 1
-                    if _consecutive_errors > 50:
-                        log.error("Too many consecutive readStream errors — stopping capture")
+                    if _consecutive_errors > _MAX_CONSECUTIVE_ERRORS:
+                        log.error("IQSource %s: too many consecutive readStream errors",
+                                  self.serial)
                         break
                     continue
                 _consecutive_errors = 0
                 if sr.ret == 0:
                     continue
+                streamed = True
 
                 # Copy into fixed-size blocks; samples past the end of one
                 # block start the next (dropping them would put a gap in the
@@ -108,8 +131,9 @@ class IQSource:
                     except queue.Full:
                         pass  # consumer too slow; drop block
 
-        except Exception:
-            log.exception("IQSource thread crashed (serial=%s)", self.serial)
+        except Exception as e:
+            # Typically "no match" while the dongle is unplugged — not worth a traceback
+            log.error("IQSource %s: %s", self.serial, e)
         finally:
             # Release the dongle explicitly so it can be reopened right away
             # (band switching retunes by stopping and restarting the source).
@@ -120,4 +144,4 @@ class IQSource:
                 except Exception:
                     log.exception("Error closing stream (serial=%s)", self.serial)
             dev = None
-            log.info("IQSource %s stopped", self.serial)
+        return streamed
