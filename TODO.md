@@ -45,8 +45,8 @@ Marine/Railroad/HAM (not built yet — see "Declared but not built" below).
 - [ ] **2. ADS-B antenna height** — `receiver_alt_m` in
       `config/channels/adsb.yaml` is a 50 m placeholder; set the collinear's
       real height above sea level (needed for accurate MLAT when feeding).
-- [ ] **3. Fixed IP for the Pi** — add a DHCP reservation in the router for
-      the Pi (currently `192.168.68.97`; it moved from `.70` on 2026-11-18).
+- [x] **3. Fixed IP for the Pi** — DHCP reservation added in the router
+      2026-11-19 (`192.168.68.97`, over WiFi `wlan0`).
 
 ## Hardware
 
