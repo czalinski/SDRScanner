@@ -59,6 +59,9 @@ SSB_DETECTOR = {"fft_size": 16384}
 # Tune the dongle this far below the band/station: the RTL-SDR's DC spike sits
 # at its centre frequency, so nothing we listen to may be there.
 DC_OFFSET_KHZ = 30
+# Ham bands: the spike's skirt measured ~30 kHz wide on 75m (2026-11-19), so
+# their low edge sits 60 kHz above the centre instead.
+HAM_DC_OFFSET_KHZ = 60
 
 
 def amateur_band_of(khz: float) -> str | None:
@@ -81,7 +84,7 @@ def band_for_meters(name: str) -> dict | None:
     """Band dict (band_schedule.py format) scanning a whole broadcast or ham band."""
     if name in AMATEUR_BANDS:
         lo, hi, mode = AMATEUR_BANDS[name]
-        return {"name": f"{name} ham", "center_mhz": (lo - DC_OFFSET_KHZ) / 1000,
+        return {"name": f"{name} ham", "center_mhz": (lo - HAM_DC_OFFSET_KHZ) / 1000,
                 "detector": SSB_DETECTOR,
                 "scan_ranges": [{"label": name, "from_mhz": lo / 1000, "to_mhz": hi / 1000,
                                  "step_khz": 1, "mode": mode}]}

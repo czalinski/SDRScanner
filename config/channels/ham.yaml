@@ -54,7 +54,7 @@ detector:
 bands:
   - when: day
     name: "40m ham"
-    center_mhz: 7.095          # 30 kHz below the band — DC spike out of the way
+    center_mhz: 7.065          # 60 kHz below the band — DC spike and its skirt out of the way
     detector: {fft_size: 16384}
     scan_ranges:
       - label: "40m"
@@ -65,7 +65,7 @@ bands:
 
   - when: night
     name: "75m ham"
-    center_mhz: 3.570
+    center_mhz: 3.540          # at 3.570 the spike's skirt reached 3.602 (2026-11-19)
     detector: {fft_size: 16384}
     scan_ranges:
       - label: "75m"
